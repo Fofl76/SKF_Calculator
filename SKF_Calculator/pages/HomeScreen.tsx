@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../contexts/AuthContext';
 
 interface PatientData {
   creatinine: string;
@@ -10,6 +10,7 @@ interface PatientData {
 }
 
 const HomeScreen: React.FC = () => {
+  const { userProfile, saveAnalysis } = useAuth();
   const [patientData, setPatientData] = useState<PatientData>({
     creatinine: '',
     age: '',
@@ -17,6 +18,31 @@ const HomeScreen: React.FC = () => {
     race: 'other'
   });
   const [result, setResult] = useState<number | null>(null);
+
+  // Автоматически заполняем данные из профиля пользователя
+  useEffect(() => {
+    if (userProfile) {
+      const age = userProfile.birthDate ? calculateAgeFromBirthDate(userProfile.birthDate) : '';
+      setPatientData(prev => ({
+        ...prev,
+        age: age.toString(),
+        gender: userProfile.gender || 'male',
+        race: userProfile.race || 'other',
+      }));
+    }
+  }, [userProfile]);
+
+  const calculateAgeFromBirthDate = (birthDate: string): number => {
+    if (!birthDate) return 0;
+    const today = new Date();
+    const birth = new Date(birthDate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
 
   const calculateCKD_EPI = (data: PatientData): number => {
     const creatinine = parseFloat(data.creatinine);
@@ -41,35 +67,42 @@ const HomeScreen: React.FC = () => {
 
   const saveToHistory = async (data: PatientData, skfResult: number, stage: string) => {
     try {
-      const existing = await AsyncStorage.getItem('skfCalculations');
-      const calculations = existing ? JSON.parse(existing) : [];
+      // Получаем дополнительные данные из профиля для расчета BMI
+      const height = userProfile?.height || 170; // значение по умолчанию
+      const weight = userProfile?.weight || 70; // значение по умолчанию
+      const bmi = weight / Math.pow(height / 100, 2);
 
-      const newCalculation = {
-        id: Date.now().toString(),
-        date: new Date().toISOString(),
-        creatinine: parseFloat(data.creatinine),
+      const analysisData = {
         age: parseFloat(data.age),
         gender: data.gender,
         race: data.race,
-        result: skfResult,
-        stage: stage,
+        height: height,
+        weight: weight,
+        bmi: bmi,
+        creatinine: parseFloat(data.creatinine),
+        result: {
+          eGFR: skfResult,
+          stage: stage,
+          risk: getCKDStage(skfResult).description,
+        },
       };
 
-      calculations.push(newCalculation);
-      await AsyncStorage.setItem('skfCalculations', JSON.stringify(calculations));
+      await saveAnalysis(analysisData);
+      console.log('Analysis saved to Firebase');
     } catch (error) {
-      console.error('Ошибка сохранения расчета:', error);
+      console.error('Ошибка сохранения анализа:', error);
+      Alert.alert('Ошибка', 'Не удалось сохранить анализ в базу данных');
     }
   };
 
-  const handleCalculate = () => {
+  const handleCalculate = async () => {
     try {
       const skf = calculateCKD_EPI(patientData);
       const roundedResult = Math.round(skf * 100) / 100;
       const stage = getCKDStage(skf).stage;
 
       setResult(roundedResult);
-      saveToHistory(patientData, roundedResult, stage);
+      await saveToHistory(patientData, roundedResult, stage);
     } catch (error) {
       Alert.alert('Ошибка', 'Пожалуйста, проверьте введенные данные');
     }
@@ -92,6 +125,14 @@ const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.form}>
+          {userProfile && (
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileInfoText}>
+                Данные профиля используются для автоматического заполнения возраста, пола и расы
+              </Text>
+            </View>
+          )}
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Креатинин (мкмоль/л)</Text>
             <TextInput
@@ -178,6 +219,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  profileInfo: {
+    backgroundColor: '#E3F2FD',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+  },
+  profileInfoText: {
+    fontSize: 14,
+    color: '#1565C0',
+    textAlign: 'center',
   },
   scrollContainer: {
     flex: 1,

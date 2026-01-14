@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../contexts/AuthContext';
 
 interface PatientProfile {
   name: string;
@@ -12,37 +12,42 @@ interface PatientProfile {
 }
 
 const ProfileScreen: React.FC = () => {
-  const [profile, setProfile] = useState<PatientProfile>({
-    name: '',
-    birthDate: '',
-    gender: 'male',
-    race: 'other',
-    height: '',
-    weight: ''
-  });
+  const { user, userProfile, logout, updateUserProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  const loadProfile = async () => {
-    try {
-      const savedProfile = await AsyncStorage.getItem('patientProfile');
-      if (savedProfile) {
-        setProfile(JSON.parse(savedProfile));
-      }
-    } catch (error) {
-      console.error('Ошибка загрузки профиля:', error);
-    }
+  // Используем данные из контекста
+  const profile = userProfile ? {
+    name: userProfile.name || '',
+    birthDate: userProfile.birthDate || '',
+    gender: userProfile.gender || 'male',
+    race: userProfile.race || 'other',
+    height: userProfile.height?.toString() || '',
+    weight: userProfile.weight?.toString() || '',
+  } : {
+    name: '',
+    birthDate: '',
+    gender: 'male' as const,
+    race: 'other' as const,
+    height: '',
+    weight: ''
   };
 
   const saveProfile = async () => {
     try {
-      await AsyncStorage.setItem('patientProfile', JSON.stringify(profile));
+      const updates = {
+        name: profile.name,
+        birthDate: profile.birthDate,
+        gender: profile.gender,
+        race: profile.race,
+        height: profile.height ? parseFloat(profile.height) : undefined,
+        weight: profile.weight ? parseFloat(profile.weight) : undefined,
+      };
+
+      await updateUserProfile(updates);
       setIsEditing(false);
       Alert.alert('Успешно', 'Профиль сохранен');
     } catch (error) {
+      console.error('Ошибка сохранения профиля:', error);
       Alert.alert('Ошибка', 'Не удалось сохранить профиль');
     }
   };
@@ -76,9 +81,44 @@ const ProfileScreen: React.FC = () => {
     return 'Ожирение';
   };
 
+  const handleLogout = async () => {
+    Alert.alert(
+      'Выход',
+      'Вы уверены, что хотите выйти из аккаунта?',
+      [
+        {
+          text: 'Отмена',
+          style: 'cancel',
+        },
+        {
+          text: 'Выйти',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+            } catch (error) {
+              Alert.alert('Ошибка', 'Не удалось выйти из аккаунта');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollContainer}>
+        {/* User Info Section */}
+        <View style={styles.userInfoContainer}>
+          <View style={styles.userInfo}>
+            <Text style={styles.userEmail}>{user?.email}</Text>
+            <Text style={styles.userLabel}>Аккаунт</Text>
+          </View>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutButtonText}>Выйти</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.header}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
@@ -86,7 +126,7 @@ const ProfileScreen: React.FC = () => {
             </Text>
           </View>
           <Text style={styles.name}>
-            {profile.name || 'Пациент'}
+            {profile.name || user?.displayName || 'Пользователь'}
           </Text>
           {profile.birthDate && (
             <Text style={styles.age}>
@@ -129,10 +169,10 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.formTitle}>Данные пациента</Text>
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => isEditing ? saveProfile() : setIsEditing(true)}
+              onPress={() => Alert.alert('Информация', 'Редактирование профиля доступно только в веб-версии Firebase Console')}
             >
               <Text style={styles.editButtonText}>
-                {isEditing ? 'Сохранить' : 'Редактировать'}
+                Информация
               </Text>
             </TouchableOpacity>
           </View>
@@ -142,8 +182,8 @@ const ProfileScreen: React.FC = () => {
             <TextInput
               style={[styles.input, !isEditing && styles.inputDisabled]}
               value={profile.name}
-              onChangeText={(text) => setProfile({...profile, name: text})}
-              editable={isEditing}
+              onChangeText={(text) => {/* Read-only when using Firebase */}}
+              editable={false}
               placeholder="Введите ФИО"
             />
           </View>
@@ -153,8 +193,8 @@ const ProfileScreen: React.FC = () => {
             <TextInput
               style={[styles.input, !isEditing && styles.inputDisabled]}
               value={profile.birthDate}
-              onChangeText={(text) => setProfile({...profile, birthDate: text})}
-              editable={isEditing}
+              onChangeText={(text) => {/* Read-only when using Firebase */}}
+              editable={false}
               placeholder="ГГГГ-ММ-ДД"
             />
           </View>
@@ -163,16 +203,14 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.label}>Пол</Text>
             <View style={styles.radioGroup}>
               <TouchableOpacity
-                style={[styles.radioButton, profile.gender === 'male' && styles.radioButtonSelected, !isEditing && styles.radioButtonDisabled]}
-                onPress={() => isEditing && setProfile({...profile, gender: 'male'})}
-                disabled={!isEditing}
+                style={[styles.radioButton, profile.gender === 'male' && styles.radioButtonSelected, styles.radioButtonDisabled]}
+                disabled={true}
               >
                 <Text style={[styles.radioText, profile.gender === 'male' && styles.radioTextSelected]}>Мужской</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.radioButton, profile.gender === 'female' && styles.radioButtonSelected, !isEditing && styles.radioButtonDisabled]}
-                onPress={() => isEditing && setProfile({...profile, gender: 'female'})}
-                disabled={!isEditing}
+                style={[styles.radioButton, profile.gender === 'female' && styles.radioButtonSelected, styles.radioButtonDisabled]}
+                disabled={true}
               >
                 <Text style={[styles.radioText, profile.gender === 'female' && styles.radioTextSelected]}>Женский</Text>
               </TouchableOpacity>
@@ -183,16 +221,14 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.label}>Раса</Text>
             <View style={styles.radioGroup}>
               <TouchableOpacity
-                style={[styles.radioButton, profile.race === 'other' && styles.radioButtonSelected, !isEditing && styles.radioButtonDisabled]}
-                onPress={() => isEditing && setProfile({...profile, race: 'other'})}
-                disabled={!isEditing}
+                style={[styles.radioButton, profile.race === 'other' && styles.radioButtonSelected, styles.radioButtonDisabled]}
+                disabled={true}
               >
                 <Text style={[styles.radioText, profile.race === 'other' && styles.radioTextSelected]}>Не афроамериканец</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.radioButton, profile.race === 'black' && styles.radioButtonSelected, !isEditing && styles.radioButtonDisabled]}
-                onPress={() => isEditing && setProfile({...profile, race: 'black'})}
-                disabled={!isEditing}
+                style={[styles.radioButton, profile.race === 'black' && styles.radioButtonSelected, styles.radioButtonDisabled]}
+                disabled={true}
               >
                 <Text style={[styles.radioText, profile.race === 'black' && styles.radioTextSelected]}>Афроамериканец</Text>
               </TouchableOpacity>
@@ -203,10 +239,10 @@ const ProfileScreen: React.FC = () => {
             <View style={[styles.inputGroup, styles.halfWidth]}>
               <Text style={styles.label}>Рост (см)</Text>
               <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
+                style={[styles.input, styles.inputDisabled]}
                 value={profile.height}
-                onChangeText={(text) => setProfile({...profile, height: text})}
-                editable={isEditing}
+                onChangeText={(text) => {/* Read-only when using Firebase */}}
+                editable={false}
                 keyboardType="numeric"
                 placeholder="170"
               />
@@ -214,10 +250,10 @@ const ProfileScreen: React.FC = () => {
             <View style={[styles.inputGroup, styles.halfWidth]}>
               <Text style={styles.label}>Вес (кг)</Text>
               <TextInput
-                style={[styles.input, !isEditing && styles.inputDisabled]}
+                style={[styles.input, styles.inputDisabled]}
                 value={profile.weight}
-                onChangeText={(text) => setProfile({...profile, weight: text})}
-                editable={isEditing}
+                onChangeText={(text) => {/* Read-only when using Firebase */}}
+                editable={false}
                 keyboardType="numeric"
                 placeholder="70"
               />
@@ -226,7 +262,6 @@ const ProfileScreen: React.FC = () => {
 
           {isEditing && (
             <TouchableOpacity style={styles.cancelButton} onPress={() => {
-              loadProfile();
               setIsEditing(false);
             }}>
               <Text style={styles.cancelButtonText}>Отмена</Text>
@@ -245,6 +280,45 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
+  },
+  userInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    margin: 20,
+    marginBottom: 10,
+    padding: 15,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userEmail: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  userLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  logoutButton: {
+    backgroundColor: '#FF3B30',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  logoutButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
   },
   header: {
     alignItems: 'center',
