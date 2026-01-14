@@ -1,18 +1,27 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, Auth } from 'firebase/auth';
-// @ts-ignore - firebaseAuth может быть undefined если Firebase не инициализирован
-import { Auth as firebaseAuth, Firestore as firestoreDb } from '../config/firebase';
+import { User, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, Auth, getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import '../config/firebase'; // Ensure Firebase is initialized
 import { databaseService } from '../services/databaseService';
 import { UserProfile, Analysis } from '../types/database';
 
-// Type assertion for auth
-// @ts-ignore - firebaseAuth может быть undefined если Firebase не инициализирован
-const typedAuth: Auth | undefined = firebaseAuth;
+// Initialize Firebase services directly
+let auth: Auth;
+let db: any;
+
+try {
+  auth = getAuth();
+  db = getFirestore();
+  console.log('Firebase services initialized in AuthContext');
+} catch (error) {
+  console.error('Failed to initialize Firebase in AuthContext:', error);
+  auth = null as any;
+  db = null;
+}
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  error: string | null;
   userProfile: UserProfile | null;
   userAnalyses: Analysis[];
   signIn: (email: string, password: string) => Promise<void>;
@@ -38,9 +47,9 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  console.log('AuthProvider initialized');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userAnalyses, setUserAnalyses] = useState<Analysis[]>([]);
 
@@ -48,15 +57,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     let isMounted = true;
 
     // Проверяем инициализирован ли Firebase
-    if (!typedAuth) {
+    if (!auth) {
       console.error('Firebase auth not initialized');
-      setError('Firebase не инициализирован. Проверьте настройки.');
       setLoading(false);
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(typedAuth, async (user) => {
-      console.log('Auth state changed:', user ? `User: ${user.email}` : 'No user');
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('Auth state changed:', user ? `User: ${user.email}, UID: ${user.uid}` : 'No user');
 
       try {
         if (user && isMounted) {
@@ -71,13 +79,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Загружаем анализы пользователя
             const analyses = await databaseService.getUserAnalyses(user.uid);
             if (isMounted) setUserAnalyses(analyses);
-
-            // Сбрасываем ошибку если данные загружены успешно
-            if (isMounted) setError(null);
           } catch (error) {
             console.error('Error loading user data from database:', error);
             if (isMounted) {
-              setError('Ошибка загрузки данных пользователя из базы данных');
               setUserProfile(null);
               setUserAnalyses([]);
             }
@@ -85,17 +89,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else if (isMounted) {
           setUserProfile(null);
           setUserAnalyses([]);
-          setError(null);
         }
 
         if (isMounted) {
+          console.log('Setting user state:', user ? user.email : null);
           setUser(user);
           setLoading(false);
+          console.log('User state updated, loading set to false');
         }
       } catch (error) {
         console.error('Error loading user data:', error);
         if (isMounted) {
-          setError('Ошибка подключения к базе данных. Проверьте настройки Firebase.');
           setUser(null);
           setUserProfile(null);
           setUserAnalyses([]);
@@ -108,7 +112,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const timeoutId = setTimeout(() => {
       if (isMounted) {
         console.warn('Firebase auth timeout - loading fallback');
-        setError('Превышено время ожидания подключения к Firebase');
         setUser(null);
         setUserProfile(null);
         setUserAnalyses([]);
@@ -124,11 +127,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    if (!typedAuth) throw new Error('Firebase auth not initialized');
+    console.log('SignIn called with email:', email);
+    console.log('auth exists:', !!auth);
+
+    if (!auth) {
+      console.error('Firebase auth not initialized');
+      throw new Error('Firebase auth not initialized');
+    }
 
     try {
-      const userCredential = await signInWithEmailAndPassword(typedAuth, email, password);
-      console.log('User signed in:', userCredential.user.email);
+      console.log('Attempting to sign in...');
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('User signed in successfully:', userCredential.user.email);
     } catch (error) {
       console.error('Sign in error:', error);
       throw error;
@@ -136,11 +146,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signUp = async (email: string, password: string) => {
-    if (!typedAuth) throw new Error('Firebase auth not initialized');
+    console.log('SignUp called with email:', email);
+    console.log('auth exists:', !!auth);
+
+    if (!auth) {
+      console.error('Firebase auth not initialized');
+      throw new Error('Firebase auth not initialized');
+    }
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(typedAuth, email, password);
-      console.log('User signed up:', userCredential.user.email);
+      console.log('Attempting to sign up...');
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log('User signed up successfully:', userCredential.user.email);
 
       // Создаем запись в базе данных
       await databaseService.createUser(userCredential.user.uid, email);
@@ -152,10 +169,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = async () => {
-    if (!typedAuth) throw new Error('Firebase auth not initialized');
+    if (!auth) throw new Error('Firebase auth not initialized');
 
     try {
-      await signOut(typedAuth);
+      await signOut(auth);
       console.log('User signed out');
     } catch (error) {
       console.error('Sign out error:', error);
@@ -229,7 +246,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const value = {
     user,
     loading,
-    error,
     userProfile,
     userAnalyses,
     signIn,

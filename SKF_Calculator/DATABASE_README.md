@@ -146,6 +146,28 @@ const MyComponent = () => {
 2. Просмотрите коллекции `users`, `userProfiles`, `analyses`
 3. Используйте фильтры для поиска данных конкретного пользователя
 
+## Статистика пользователя
+
+Приложение предоставляет статистику по анализам пользователя:
+
+```typescript
+interface UserStats {
+  totalAnalyses: number;    // Общее количество анализов
+  averageBMI: number;       // Средний ИМТ
+  averageEGFR: number;      // Средняя СКФ
+  lastAnalysisDate?: Date;  // Дата последнего анализа
+}
+```
+
+### Получение статистики
+
+```typescript
+const stats = await databaseService.getUserStats(userId);
+console.log(`Всего анализов: ${stats.totalAnalyses}`);
+console.log(`Средний ИМТ: ${stats.averageBMI.toFixed(1)}`);
+console.log(`Средняя СКФ: ${stats.averageEGFR.toFixed(1)}`);
+```
+
 ## Резервное копирование
 
 Firebase автоматически создает резервные копии данных. Для дополнительной безопасности:

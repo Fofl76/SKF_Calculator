@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -9,6 +9,7 @@ import ProfileScreen from './pages/ProfileScreen';
 import HistoryScreen from './pages/HistoryScreen';
 import LoginScreen from './pages/LoginScreen';
 import RegisterScreen from './pages/RegisterScreen';
+import { useEffect, useRef } from 'react';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -70,21 +71,30 @@ function MainApp() {
   );
 }
 
-function AuthStack() {
-  return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-    </Stack.Navigator>
-  );
-}
-
 function AppNavigator() {
-  const { user, loading, error } = useAuth();
+  const { user, loading } = useAuth();
+  const navigationRef = useNavigationContainerRef();
+
+  console.log('AppNavigator render - user:', user ? user.email : 'null', 'loading:', loading);
+
+  // Сбрасываем стек навигации при изменении состояния аутентификации
+  useEffect(() => {
+    if (!loading && navigationRef.isReady()) {
+      if (user) {
+        // Пользователь вошел - переходим на MainApp
+        navigationRef.reset({
+          index: 0,
+          routes: [{ name: 'MainApp' }],
+        });
+      } else {
+        // Пользователь вышел - переходим на Login
+        navigationRef.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      }
+    }
+  }, [user, loading, navigationRef]);
 
   if (loading) {
     return (
@@ -95,34 +105,20 @@ function AppNavigator() {
     );
   }
 
-  if (error) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 20 }}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 10, textAlign: 'center' }}>
-          Ошибка подключения
-        </Text>
-        <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 20 }}>
-          {error}
-        </Text>
-        <TouchableOpacity
-          style={{ backgroundColor: '#007AFF', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 8, marginBottom: 20 }}
-          onPress={() => {
-            // Перезагрузка приложения
-            alert('Перезапустите приложение вручную (Ctrl+R или Cmd+R)');
-          }}
-        >
-          <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>Повторить попытку</Text>
-        </TouchableOpacity>
-        <Text style={{ fontSize: 14, color: '#999', textAlign: 'center', lineHeight: 20 }}>
-          Если ошибка persists, проверьте настройки Firebase в файле FIREBASE_SETUP.md
-        </Text>
-      </View>
-    );
-  }
-
   return (
-    <NavigationContainer>
-      {user ? <MainApp /> : <AuthStack />}
+    <NavigationContainer ref={navigationRef}>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {user ? (
+          // Аутентифицированный пользователь - показываем MainApp в виде экрана
+          <Stack.Screen name="MainApp" component={MainApp} />
+        ) : (
+          // Неаутентифицированный пользователь - показываем экраны авторизации
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
+        )}
+      </Stack.Navigator>
       <StatusBar style="auto" />
     </NavigationContainer>
   );

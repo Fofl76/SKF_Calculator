@@ -1,0 +1,73 @@
+{
+  "__collections__": {
+    "users": {
+      "__doc__user1": {
+        "email": "test@example.com",
+        "createdAt": {
+          "__datatype__": "timestamp",
+          "value": {
+            "_seconds": 1704230400,
+            "_nanoseconds": 0
+          }
+        },
+        "lastLoginAt": {
+          "__datatype__": "timestamp",
+          "value": {
+            "_seconds": 1704230400,
+            "_nanoseconds": 0
+          }
+        }
+      }
+    },
+    "userProfiles": {
+      "__doc__profile1": {
+        "userId": "user1",
+        "email": "test@example.com",
+        "name": "Иванов Иван",
+        "birthDate": "1985-06-15",
+        "gender": "male",
+        "race": "other",
+        "height": 175,
+        "weight": 70,
+        "createdAt": {
+          "__datatype__": "timestamp",
+          "value": {
+            "_seconds": 1704230400,
+            "_nanoseconds": 0
+          }
+        },
+        "updatedAt": {
+          "__datatype__": "timestamp",
+          "value": {
+            "_seconds": 1704230400,
+            "_nanoseconds": 0
+          }
+        }
+      }
+    },
+    "analyses": {
+      "__doc__analysis1": {
+        "userId": "user1",
+        "age": 38,
+        "gender": "male",
+        "race": "other",
+        "height": 175,
+        "weight": 70,
+        "bmi": 22.86,
+        "creatinine": 1.2,
+        "result": {
+          "eGFR": 85.5,
+          "stage": "Стадия 2",
+          "risk": "Легкое снижение СКФ"
+        },
+        "createdAt": {
+          "__datatype__": "timestamp",
+          "value": {
+            "_seconds": 1704230400,
+            "_nanoseconds": 0
+          }
+        }
+      }
+    }
+  }
+}

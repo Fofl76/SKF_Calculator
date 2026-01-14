@@ -23,9 +23,16 @@ let app;
 let auth;
 let db;
 
+// Check if running in Expo/React Native environment
+const isExpo = typeof global !== 'undefined' && global.__expo;
+
 try {
   // Check if Firebase app already exists
   if (!app) {
+    // For Expo/React Native, we need to ensure proper initialization
+    if (isExpo) {
+      console.log('Initializing Firebase for Expo/React Native');
+    }
     app = initializeApp(firebaseConfig);
     console.log('Firebase app initialized successfully');
   } else {
@@ -44,9 +51,11 @@ try {
   }
 
   console.log('All Firebase services initialized successfully');
+  console.log('App:', !!app, 'Auth:', !!auth, 'DB:', !!db);
 } catch (error) {
   console.error('Firebase initialization error:', error);
   console.error('Error details:', (error as Error).message);
+  console.error('Error code:', (error as any).code);
 
   // Check if it's a duplicate app error
   if (error.code === 'app/duplicate-app') {
