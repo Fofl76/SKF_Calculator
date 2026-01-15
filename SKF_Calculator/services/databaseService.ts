@@ -81,7 +81,7 @@ class DatabaseService {
       throw new Error('Firebase db not initialized');
     }
 
-    const profileDoc: Omit<UserProfile, 'id'> = {
+    let profileDoc: any = {
       userId,
       email: profileData.email || '',
       name: profileData.name,
@@ -90,12 +90,15 @@ class DatabaseService {
       race: profileData.race,
       height: profileData.height,
       weight: profileData.weight,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
-
-    const docRef = await addDoc(collection(db, COLLECTIONS.USER_PROFILES), profileDoc);
-    return docRef.id;
+    // Remove undefined fields (Firestore rejects undefined)
+    profileDoc = Object.fromEntries(Object.entries(profileDoc).filter(([_, v]) => v !== undefined));
+    // Store profile under document id == userId for simpler security rules and direct access
+    const docRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
+    await setDoc(docRef, profileDoc);
+    return userId;
   }
 
   async getUserProfile(userId: string): Promise<UserProfile | null> {
@@ -105,19 +108,14 @@ class DatabaseService {
     }
 
     console.log('Getting user profile:', userId);
-    const q = query(
-      collection(db, COLLECTIONS.USER_PROFILES),
-      where('userId', '==', userId)
-    );
-    const querySnapshot = await getDocs(q);
-
-    if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
+    const docRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
       return {
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+        id: docSnap.id,
+        ...docSnap.data(),
+        createdAt: docSnap.data().createdAt?.toDate() || new Date(),
+        updatedAt: docSnap.data().updatedAt?.toDate() || new Date(),
       } as UserProfile;
     }
     return null;
@@ -130,20 +128,15 @@ class DatabaseService {
     }
 
     console.log('Updating user profile:', userId);
-    const q = query(
-      collection(db, COLLECTIONS.USER_PROFILES),
-      where('userId', '==', userId)
-    );
-    const querySnapshot = await getDocs(q);
-
-    if (!querySnapshot.empty) {
-      const docRef = doc(db, COLLECTIONS.USER_PROFILES, querySnapshot.docs[0].id);
-      await updateDoc(docRef, {
-        ...updates,
-        updatedAt: serverTimestamp(),
-      });
+    const docRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      // Clean updates from undefined values
+      const cleanUpdates = Object.fromEntries(Object.entries(updates).filter(([_, v]) => v !== undefined));
+      cleanUpdates.updatedAt = serverTimestamp();
+      await updateDoc(docRef, cleanUpdates);
     } else {
-      // Если профиль не существует, создаем его
+      // Если профиль не существует, создаем его под id = userId
       await this.createUserProfile(userId, updates);
     }
   }

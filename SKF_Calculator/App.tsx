@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -9,7 +9,7 @@ import ProfileScreen from './pages/ProfileScreen';
 import HistoryScreen from './pages/HistoryScreen';
 import LoginScreen from './pages/LoginScreen';
 import RegisterScreen from './pages/RegisterScreen';
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -73,28 +73,18 @@ function MainApp() {
 
 function AppNavigator() {
   const { user, loading } = useAuth();
-  const navigationRef = useNavigationContainerRef();
+  const [navigationKey, setNavigationKey] = useState(user ? 'auth' : 'no-auth');
 
-  console.log('AppNavigator render - user:', user ? user.email : 'null', 'loading:', loading);
+  console.log('AppNavigator render - user:', user ? user.email : 'null', 'loading:', loading, 'key:', navigationKey);
 
-  // Сбрасываем стек навигации при изменении состояния аутентификации
   useEffect(() => {
-    if (!loading && navigationRef.isReady()) {
-      if (user) {
-        // Пользователь вошел - переходим на MainApp
-        navigationRef.reset({
-          index: 0,
-          routes: [{ name: 'MainApp' }],
-        });
-      } else {
-        // Пользователь вышел - переходим на Login
-        navigationRef.reset({
-          index: 0,
-          routes: [{ name: 'Login' }],
-        });
-      }
+    // Принудительно обновляем ключ навигации при изменении состояния пользователя
+    const newKey = user ? 'auth' : 'no-auth';
+    if (newKey !== navigationKey) {
+      console.log('Changing navigation key from', navigationKey, 'to', newKey);
+      setNavigationKey(newKey);
     }
-  }, [user, loading, navigationRef]);
+  }, [user, navigationKey]);
 
   if (loading) {
     return (
@@ -106,18 +96,14 @@ function AppNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          // Аутентифицированный пользователь - показываем MainApp в виде экрана
-          <Stack.Screen name="MainApp" component={MainApp} />
-        ) : (
-          // Неаутентифицированный пользователь - показываем экраны авторизации
-          <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-          </>
-        )}
+    <NavigationContainer key={navigationKey}>
+      <Stack.Navigator
+        screenOptions={{ headerShown: false }}
+        initialRouteName={user ? 'MainApp' : 'Login'}
+      >
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="MainApp" component={MainApp} />
       </Stack.Navigator>
       <StatusBar style="auto" />
     </NavigationContainer>

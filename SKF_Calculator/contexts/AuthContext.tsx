@@ -63,7 +63,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return;
     }
 
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      // Если таймаут ещё висит, отменяем его — получили ответ от Firebase
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+        console.log('Cleared auth timeout due to auth state change');
+      }
+
       console.log('Auth state changed:', user ? `User: ${user.email}, UID: ${user.uid}` : 'No user');
 
       try {
@@ -109,7 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     // Таймаут на случай если Firebase не отвечает
-    const timeoutId = setTimeout(() => {
+    timeoutId = setTimeout(() => {
       if (isMounted) {
         console.warn('Firebase auth timeout - loading fallback');
         setUser(null);
@@ -117,11 +126,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUserAnalyses([]);
         setLoading(false);
       }
+      timeoutId = null;
     }, 10000); // 10 секунд таймаут
 
     return () => {
       isMounted = false;
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
       unsubscribe();
     };
   }, []);
@@ -172,8 +182,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!auth) throw new Error('Firebase auth not initialized');
 
     try {
+      console.log('Starting logout process...');
+      // Очищаем локальное состояние перед выходом
+      setUserProfile(null);
+      setUserAnalyses([]);
+      console.log('Local state cleared');
+
       await signOut(auth);
-      console.log('User signed out');
+      console.log('Firebase signOut completed');
+
+      // Небольшая задержка для гарантии обновления состояния
+      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log('Logout process completed');
     } catch (error) {
       console.error('Sign out error:', error);
       throw error;

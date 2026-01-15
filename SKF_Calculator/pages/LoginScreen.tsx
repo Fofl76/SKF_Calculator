@@ -31,7 +31,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     setLoading(true);
     try {
       await signIn(email, password);
-      // Навигация произойдет автоматически через AuthContext
+      // Навигация обрабатывается AppNavigator через изменение user в контексте
     } catch (error: any) {
       console.error('Login error:', error);
       let errorMessage = 'Произошла ошибка при входе';

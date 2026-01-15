@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Alert, Platform, Modal } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
+import { UserProfile } from '../types/database';
 
 interface PatientProfile {
   name: string;
@@ -13,38 +15,43 @@ interface PatientProfile {
 
 const ProfileScreen: React.FC = () => {
   const { user, userProfile, logout, updateUserProfile } = useAuth();
+  const navigation = useNavigation();
   const [isEditing, setIsEditing] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // Используем данные из контекста
-  const profile = userProfile ? {
-    name: userProfile.name || '',
-    birthDate: userProfile.birthDate || '',
-    gender: userProfile.gender || 'male',
-    race: userProfile.race || 'other',
-    height: userProfile.height?.toString() || '',
-    weight: userProfile.weight?.toString() || '',
-  } : {
+  // Показываем пустые поля по умолчанию, как запросил пользователь.
+  const profile = {
     name: '',
     birthDate: '',
-    gender: 'male' as const,
-    race: 'other' as const,
+    gender: (userProfile?.gender as 'male' | 'female') || 'male',
+    race: (userProfile?.race as 'black' | 'other') || 'other',
     height: '',
     weight: ''
   };
+  // Локальные контролируемые поля для редактирования
+  const [nameInput, setNameInput] = useState<string>(profile.name);
+  const [birthDateInput, setBirthDateInput] = useState<string>(profile.birthDate);
+  const [heightInput, setHeightInput] = useState<string>(profile.height);
+  const [weightInput, setWeightInput] = useState<string>(profile.weight);
 
   const saveProfile = async () => {
     try {
       const updates = {
-        name: profile.name,
-        birthDate: profile.birthDate,
-        gender: profile.gender,
-        race: profile.race,
-        height: profile.height ? parseFloat(profile.height) : undefined,
-        weight: profile.weight ? parseFloat(profile.weight) : undefined,
-      };
+        name: nameInput || undefined,
+        birthDate: birthDateInput || undefined,
+        // Не меняем gender/race здесь
+        height: heightInput ? parseFloat(heightInput) : undefined,
+        weight: weightInput ? parseFloat(weightInput) : undefined,
+      } as Partial<UserProfile>;
 
       await updateUserProfile(updates);
       setIsEditing(false);
+      // Очищаем локальную форму (поля пользователь хотел видеть пустыми по умолчанию)
+      setNameInput('');
+      setBirthDateInput('');
+      setHeightInput('');
+      setWeightInput('');
       Alert.alert('Успешно', 'Профиль сохранен');
     } catch (error) {
       console.error('Ошибка сохранения профиля:', error);
@@ -81,32 +88,66 @@ const ProfileScreen: React.FC = () => {
     return 'Ожирение';
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Выход',
-      'Вы уверены, что хотите выйти из аккаунта?',
-      [
-        {
-          text: 'Отмена',
-          style: 'cancel',
-        },
-        {
-          text: 'Выйти',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-            } catch (error) {
-              Alert.alert('Ошибка', 'Не удалось выйти из аккаунта');
-            }
-          },
-        },
-      ]
-    );
+  const doLogoutAndNavigate = async () => {
+    try {
+      console.log('Calling logout() from AuthContext');
+      await logout();
+      console.log('logout() resolved, navigating to Login');
+      const parentNav = navigation.getParent?.();
+      const rootNav = parentNav?.getParent?.() ?? parentNav;
+      if (rootNav && typeof rootNav.reset === 'function') {
+        rootNav.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      } else if (rootNav && typeof rootNav.navigate === 'function') {
+        (rootNav as any).navigate('Login');
+      } else {
+        (navigation as any).navigate('Login');
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+      Alert.alert('Ошибка', 'Не удалось выйти из аккаунта');
+    }
+  };
+
+  const handleLogout = () => {
+    // Показываем кастомный модальный диалог подтверждения
+    setShowLogoutModal(true);
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      <Modal
+        visible={showLogoutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Выход</Text>
+            <Text style={styles.modalMessage}>Вы уверены, что хотите выйти из аккаунта?</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancel]}
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalConfirm]}
+                onPress={async () => {
+                  setShowLogoutModal(false);
+                  await doLogoutAndNavigate();
+                }}
+              >
+                <Text style={styles.modalConfirmText}>Выйти</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <ScrollView style={styles.scrollContainer}>
         {/* User Info Section */}
         <View style={styles.userInfoContainer}>
@@ -130,7 +171,7 @@ const ProfileScreen: React.FC = () => {
           </Text>
           {profile.birthDate && (
             <Text style={styles.age}>
-              Возраст: {calculateAge(profile.birthDate)} лет
+              {`Возраст: ${calculateAge(profile.birthDate)} лет`}
             </Text>
           )}
         </View>
@@ -138,13 +179,13 @@ const ProfileScreen: React.FC = () => {
         <View style={styles.statsContainer}>
           <View style={styles.stat}>
             <Text style={styles.statNumber}>
-              {profile.height || '-'} см
+              {`${profile.height || '-'} см`}
             </Text>
             <Text style={styles.statLabel}>Рост</Text>
           </View>
           <View style={styles.stat}>
             <Text style={styles.statNumber}>
-              {profile.weight || '-'} кг
+              {`${profile.weight || '-'} кг`}
             </Text>
             <Text style={styles.statLabel}>Вес</Text>
           </View>
@@ -169,10 +210,19 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.formTitle}>Данные пациента</Text>
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => Alert.alert('Информация', 'Редактирование профиля доступно только в веб-версии Firebase Console')}
+              onPress={async () => {
+                // Если сейчас не редактируем — включаем режим редактирования
+                if (!isEditing) {
+                  setIsEditing(true);
+                  // Оставляем поля пустыми (по требованию)
+                } else {
+                  // Если в режиме редактирования — сохраняем данные
+                  await saveProfile();
+                }
+              }}
             >
               <Text style={styles.editButtonText}>
-                Информация
+                {isEditing ? 'Сохранить' : 'Обновить данные'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -181,9 +231,9 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.label}>ФИО</Text>
             <TextInput
               style={[styles.input, !isEditing && styles.inputDisabled]}
-              value={profile.name}
-              onChangeText={(text) => {/* Read-only when using Firebase */}}
-              editable={false}
+              value={nameInput}
+              onChangeText={setNameInput}
+              editable={isEditing}
               placeholder="Введите ФИО"
             />
           </View>
@@ -192,9 +242,9 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.label}>Дата рождения</Text>
             <TextInput
               style={[styles.input, !isEditing && styles.inputDisabled]}
-              value={profile.birthDate}
-              onChangeText={(text) => {/* Read-only when using Firebase */}}
-              editable={false}
+              value={birthDateInput}
+              onChangeText={setBirthDateInput}
+              editable={isEditing}
               placeholder="ГГГГ-ММ-ДД"
             />
           </View>
@@ -238,22 +288,22 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.rowContainer}>
             <View style={[styles.inputGroup, styles.halfWidth]}>
               <Text style={styles.label}>Рост (см)</Text>
-              <TextInput
-                style={[styles.input, styles.inputDisabled]}
-                value={profile.height}
-                onChangeText={(text) => {/* Read-only when using Firebase */}}
-                editable={false}
-                keyboardType="numeric"
-                placeholder="170"
-              />
+            <TextInput
+              style={[styles.input, !isEditing && styles.inputDisabled]}
+              value={heightInput}
+              onChangeText={setHeightInput}
+              editable={isEditing}
+              keyboardType="numeric"
+              placeholder="170"
+            />
             </View>
             <View style={[styles.inputGroup, styles.halfWidth]}>
               <Text style={styles.label}>Вес (кг)</Text>
               <TextInput
-                style={[styles.input, styles.inputDisabled]}
-                value={profile.weight}
-                onChangeText={(text) => {/* Read-only when using Firebase */}}
-                editable={false}
+                style={[styles.input, !isEditing && styles.inputDisabled]}
+                value={weightInput}
+                onChangeText={setWeightInput}
+                editable={isEditing}
                 keyboardType="numeric"
                 placeholder="70"
               />
@@ -407,16 +457,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  editButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  editButtonText: {
-    color: 'white',
-    fontWeight: '600',
-  },
+  /* editButton styles defined above */
   inputGroup: {
     marginBottom: 20,
   },
@@ -484,6 +525,66 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  editButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  editButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '85%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#444',
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 6,
+  },
+  modalCancel: {
+    backgroundColor: '#eee',
+  },
+  modalConfirm: {
+    backgroundColor: '#FF3B30',
+  },
+  modalCancelText: {
+    color: '#333',
+    fontWeight: '600',
+  },
+  modalConfirmText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 });
 
