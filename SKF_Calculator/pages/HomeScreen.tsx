@@ -1,36 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, TextInput, ScrollView, Alert, Switch } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 
 interface PatientData {
+  name: string;
   creatinine: string;
   age: string;
   gender: 'male' | 'female';
   race: 'black' | 'other';
+  height: string; // cm
+  weight: string; // kg
 }
 
 const HomeScreen: React.FC = () => {
   const { userProfile, saveAnalysis } = useAuth();
   const [patientData, setPatientData] = useState<PatientData>({
+    name: '',
     creatinine: '',
     age: '',
     gender: 'male',
-    race: 'other'
+    race: 'other',
+    height: '',
+    weight: ''
   });
+  const [creatinineUnit, setCreatinineUnit] = useState<'umol' | 'mgdl'>('umol');
+  // Toggle handler for creatinine unit switch (true => mg/dL)
+  const toggleCreatinineUnit = (toMgdl: boolean) => {
+    const current = creatinineUnit;
+    const val = parseFloat(patientData.creatinine);
+    if (!isNaN(val)) {
+      if (toMgdl && current === 'umol') {
+        // µmol/L -> mg/dL
+        const converted = +(val / 88.4).toFixed(3);
+        setPatientData({ ...patientData, creatinine: String(converted) });
+      } else if (!toMgdl && current === 'mgdl') {
+        // mg/dL -> µmol/L
+        const converted = +(val * 88.4).toFixed(1);
+        setPatientData({ ...patientData, creatinine: String(converted) });
+      }
+    }
+    setCreatinineUnit(toMgdl ? 'mgdl' : 'umol');
+  };
   const [result, setResult] = useState<number | null>(null);
 
-  // Автоматически заполняем данные из профиля пользователя
-  useEffect(() => {
-    if (userProfile) {
-      const age = userProfile.birthDate ? calculateAgeFromBirthDate(userProfile.birthDate) : '';
-      setPatientData(prev => ({
-        ...prev,
-        age: age.toString(),
-        gender: userProfile.gender || 'male',
-        race: userProfile.race || 'other',
-      }));
-    }
-  }, [userProfile]);
+  // Do not auto-fill form fields from user profile; fields are filled manually by user.
 
   const calculateAgeFromBirthDate = (birthDate: string): number => {
     if (!birthDate) return 0;
@@ -45,41 +58,48 @@ const HomeScreen: React.FC = () => {
   };
 
   const calculateCKD_EPI = (data: PatientData): number => {
-    const creatinine = parseFloat(data.creatinine);
+    // CKD-EPI 2021 creatinine equation (refit, without race)
+    // Formula expects serum creatinine in mg/dL (IDMS-standardized).
+    // We accept input in either µmol/L or mg/dL; handle conversion based on creatinineUnit.
+    const creatinineInput = parseFloat(data.creatinine);
     const age = parseFloat(data.age);
 
-    if (!creatinine || !age || creatinine <= 0 || age <= 0) {
+    if (!creatinineInput || !age || creatinineInput <= 0 || age <= 0) {
       throw new Error('Некорректные данные');
     }
 
-    let k = data.gender === 'female' ? 0.7 : 0.9;
-    let alpha = data.gender === 'female' ? -0.329 : -0.411;
-    let raceFactor = data.race === 'black' ? 1.159 : 1.0;
+    const scr = creatinineUnit === 'mgdl' ? creatinineInput : creatinineInput / 88.4; // µmol/L -> mg/dL if needed
 
-    if (data.gender === 'female' && creatinine <= k) {
-      return 144 * Math.pow(creatinine / k, alpha) * Math.pow(0.993, age) * raceFactor;
-    } else if (data.gender === 'male' && creatinine <= k) {
-      return 141 * Math.pow(creatinine / k, alpha) * Math.pow(0.993, age) * raceFactor;
-    } else {
-      return 141 * Math.pow(creatinine / k, -1.209) * Math.pow(0.993, age) * raceFactor;
-    }
+    const k = data.gender === 'female' ? 0.7 : 0.9;
+    const alpha = data.gender === 'female' ? -0.241 : -0.302;
+    const scrOverK = scr / k;
+
+    const part1 = Math.pow(Math.min(scrOverK, 1), alpha);
+    const part2 = Math.pow(Math.max(scrOverK, 1), -1.200);
+    const ageFactor = Math.pow(0.9938, age);
+    const femaleFactor = data.gender === 'female' ? 1.012 : 1.0;
+
+    const egfr = 142 * part1 * part2 * ageFactor * femaleFactor;
+    return egfr;
   };
 
   const saveToHistory = async (data: PatientData, skfResult: number, stage: string) => {
     try {
-      // Получаем дополнительные данные из профиля для расчета BMI
-      const height = userProfile?.height || 170; // значение по умолчанию
-      const weight = userProfile?.weight || 70; // значение по умолчанию
+      // Use entered height/weight if provided, otherwise fall back to profile or defaults
+      const height = data.height ? parseFloat(data.height) : userProfile?.height || 170;
+      const weight = data.weight ? parseFloat(data.weight) : userProfile?.weight || 70;
       const bmi = weight / Math.pow(height / 100, 2);
 
       const analysisData = {
+        name: data.name || '',
         age: parseFloat(data.age),
         gender: data.gender,
         race: data.race,
         height: height,
         weight: weight,
         bmi: bmi,
-        creatinine: parseFloat(data.creatinine),
+        // Store creatinine in µmol/L in database (convert if user entered mg/dL)
+        creatinine: creatinineUnit === 'mgdl' ? parseFloat(data.creatinine) * 88.4 : parseFloat(data.creatinine),
         result: {
           eGFR: skfResult,
           stage: stage,
@@ -97,6 +117,29 @@ const HomeScreen: React.FC = () => {
 
   const handleCalculate = async () => {
     try {
+      // Validation
+      const creat = parseFloat(patientData.creatinine);
+      const age = parseFloat(patientData.age);
+      const height = patientData.height ? parseFloat(patientData.height) : undefined;
+      const weight = patientData.weight ? parseFloat(patientData.weight) : undefined;
+
+      if (isNaN(creat) || creat <= 0) {
+        Alert.alert('Ошибка', 'Введите корректное значение креатинина (> 0).');
+        return;
+      }
+      if (isNaN(age) || age <= 0 || age > 120) {
+        Alert.alert('Ошибка', 'Введите корректный возраст (1–120).');
+        return;
+      }
+      if (height !== undefined && (isNaN(height) || height <= 0 || height > 300)) {
+        Alert.alert('Ошибка', 'Введите корректный рост в см.');
+        return;
+      }
+      if (weight !== undefined && (isNaN(weight) || weight <= 0 || weight > 500)) {
+        Alert.alert('Ошибка', 'Введите корректный вес в кг.');
+        return;
+      }
+
       const skf = calculateCKD_EPI(patientData);
       const roundedResult = Math.round(skf * 100) / 100;
       const stage = getCKDStage(skf).stage;
@@ -104,6 +147,7 @@ const HomeScreen: React.FC = () => {
       setResult(roundedResult);
       await saveToHistory(patientData, roundedResult, stage);
     } catch (error) {
+      console.error('Calculation error:', error);
       Alert.alert('Ошибка', 'Пожалуйста, проверьте введенные данные');
     }
   };
@@ -125,33 +169,15 @@ const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.form}>
-          {userProfile && (
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileInfoText}>
-                Данные профиля используются для автоматического заполнения возраста, пола и расы
-              </Text>
-            </View>
-          )}
+          
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Креатинин (мкмоль/л)</Text>
+            <Text style={styles.label}>Имя пациента</Text>
             <TextInput
               style={styles.input}
-              value={patientData.creatinine}
-              onChangeText={(text) => setPatientData({...patientData, creatinine: text})}
-              keyboardType="numeric"
-              placeholder="Введите значение креатинина"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Возраст (лет)</Text>
-            <TextInput
-              style={styles.input}
-              value={patientData.age}
-              onChangeText={(text) => setPatientData({...patientData, age: text})}
-              keyboardType="numeric"
-              placeholder="Введите возраст"
+              value={patientData.name}
+              onChangeText={(text) => setPatientData({...patientData, name: text})}
+              placeholder="ФИО пациента"
             />
           </View>
 
@@ -173,22 +199,61 @@ const HomeScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* Race is not used in CKD-EPI 2021 equation; UI removed */}
+
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Раса</Text>
-            <View style={styles.radioGroup}>
-              <TouchableOpacity
-                style={[styles.radioButton, patientData.race === 'other' && styles.radioButtonSelected]}
-                onPress={() => setPatientData({...patientData, race: 'other'})}
-              >
-                <Text style={[styles.radioText, patientData.race === 'other' && styles.radioTextSelected]}>Не афроамериканец</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.radioButton, patientData.race === 'black' && styles.radioButtonSelected]}
-                onPress={() => setPatientData({...patientData, race: 'black'})}
-              >
-                <Text style={[styles.radioText, patientData.race === 'black' && styles.radioTextSelected]}>Афроамериканец</Text>
-              </TouchableOpacity>
+            <Text style={styles.label}>Вес (кг)</Text>
+            <TextInput
+              style={styles.input}
+              value={patientData.weight}
+              onChangeText={(text) => setPatientData({...patientData, weight: text})}
+              keyboardType="numeric"
+              placeholder="Введите вес в кг"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Возраст (лет)</Text>
+            <TextInput
+              style={styles.input}
+              value={patientData.age}
+              onChangeText={(text) => setPatientData({...patientData, age: text})}
+              keyboardType="numeric"
+              placeholder="Введите возраст"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Креатинин</Text>
+            <TextInput
+              style={styles.input}
+              value={patientData.creatinine}
+              onChangeText={(text) => setPatientData({...patientData, creatinine: text})}
+              keyboardType="numeric"
+              placeholder={creatinineUnit === 'umol' ? 'Введите значение в µmol/L' : 'Введите значение в mg/dL'}
+            />
+
+            <View style={styles.unitToggleContainer}>
+              <Text style={styles.unitToggleLabel}>Единицы</Text>
+              <View style={styles.unitToggleRow}>
+                <Text style={styles.unitText}>{creatinineUnit === 'umol' ? 'µmol/L' : 'mg/dL'}</Text>
+                <Switch
+                  value={creatinineUnit === 'mgdl'}
+                  onValueChange={(val) => toggleCreatinineUnit(val)}
+                />
+              </View>
             </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Рост (см)</Text>
+            <TextInput
+              style={styles.input}
+              value={patientData.height}
+              onChangeText={(text) => setPatientData({...patientData, height: text})}
+              keyboardType="numeric"
+              placeholder="Введите рост в см"
+            />
           </View>
 
           <TouchableOpacity style={styles.calculateButton} onPress={handleCalculate}>
@@ -235,6 +300,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
+    paddingBottom: 140, // leave space for elevated bottom tab bar
   },
   header: {
     padding: 20,
@@ -356,6 +422,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     color: '#666',
+  },
+  unitToggleContainer: {
+    marginTop: 10,
+  },
+  unitToggleLabel: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 6,
+  },
+  unitToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  unitText: {
+    fontSize: 16,
+    color: '#333',
+    marginRight: 12,
   },
 });
 

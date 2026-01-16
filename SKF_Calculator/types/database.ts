@@ -5,6 +5,8 @@ export interface UserProfile {
   userId: string; // Firebase Auth user ID
   email: string;
   name?: string;
+  position?: string;
+  contactPhone?: string;
   birthDate?: string;
   gender?: 'male' | 'female';
   race?: 'black' | 'other';
@@ -17,6 +19,7 @@ export interface UserProfile {
 export interface Analysis {
   id: string;
   userId: string; // Firebase Auth user ID
+  name?: string;
   age: number;
   gender: 'male' | 'female';
   race: 'black' | 'other';

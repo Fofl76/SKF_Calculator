@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Text, View, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -18,22 +18,28 @@ function MainApp() {
   return (
     <Tab.Navigator
       screenOptions={{
+        headerShown: false, // remove top header
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: '#666',
         tabBarStyle: {
-          backgroundColor: 'white',
-          borderTopWidth: 1,
-          borderTopColor: '#e0e0e0',
-          paddingBottom: 5,
-          paddingTop: 5,
-          height: 60,
+          position: 'absolute',
+          bottom: 18,
+          left: 16,
+          right: 16,
+          height: 86,
+          borderRadius: 20,
+          backgroundColor: '#FFFFFF',
+          paddingTop: 10,
+          borderWidth: 1,
+          borderColor: '#E6EEF8',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.12,
+          shadowRadius: 10,
+          elevation: 12,
         },
-        headerStyle: {
-          backgroundColor: 'white',
-        },
-        headerTintColor: '#333',
-        headerTitleStyle: {
-          fontWeight: 'bold',
+        tabBarLabelStyle: {
+          fontSize: 12,
         },
       }}
     >
@@ -42,18 +48,10 @@ function MainApp() {
         component={HomeScreen}
         options={{
           tabBarLabel: 'Расчет',
-          tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: size }}>🧮</Text>
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="История"
-        component={HistoryScreen}
-        options={{
-          tabBarLabel: 'История',
-          tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: size }}>📋</Text>
+          tabBarIcon: ({ color, size, focused }) => (
+            <View style={[styles.tabIcon, focused && styles.tabIconActive]}>
+              <Text style={{ color, fontSize: size }}>🧮</Text>
+            </View>
           ),
         }}
       />
@@ -62,8 +60,22 @@ function MainApp() {
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Профиль',
-          tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: size }}>👤</Text>
+        tabBarIcon: ({ color, size, focused }) => (
+            <View style={[styles.tabIconCenter, focused ? styles.tabIconActiveCenter : styles.tabIconCenter]}>
+              <Text style={{ color: focused ? '#fff' : '#333', fontSize: size + 4 }}>👤</Text>
+            </View>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="История"
+        component={HistoryScreen}
+        options={{
+          tabBarLabel: 'История',
+          tabBarIcon: ({ color, size, focused }) => (
+            <View style={[styles.tabIcon, focused && styles.tabIconActive]}>
+              <Text style={{ color, fontSize: size }}>📋</Text>
+            </View>
           ),
         }}
       />
@@ -117,3 +129,33 @@ export default function App() {
     </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  tabIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabIconActive: {
+    backgroundColor: '#E7F2FF',
+  },
+  tabIconCenter: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -20,
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  tabIconActiveCenter: {
+    backgroundColor: '#E7F2FF',
+  },
+});

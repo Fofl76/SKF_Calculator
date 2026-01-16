@@ -1,16 +1,27 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  Alert,
+  TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { databaseService } from '../services/databaseService';
 import { Analysis } from '../types/database';
 
 const AnalysisHistoryScreen: React.FC = () => {
-  const { userAnalyses } = useAuth();
+  const { userAnalyses, refreshUserData, user } = useAuth();
+
+  // Ensure we load the latest user analyses when this screen mounts
+  useEffect(() => {
+    refreshUserData().catch(err => {
+      console.error('Failed to refresh user data on HistoryScreen mount:', err);
+    });
+  }, []);
 
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString('ru-RU', {
@@ -39,10 +50,49 @@ const AnalysisHistoryScreen: React.FC = () => {
     }
   };
 
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(null);
+  const [selectedAnalysisName, setSelectedAnalysisName] = useState<string | undefined>(undefined);
+
+  const onRequestDelete = (analysisId: string, analysisName?: string, ownerId?: string) => {
+    // Prevent attempting to delete analyses that don't belong to the current user
+    if (ownerId && user && ownerId !== user.uid) {
+      Alert.alert('Ошибка', 'У вас нет прав на удаление этого анализа');
+      return;
+    }
+    setSelectedAnalysisId(analysisId);
+    setSelectedAnalysisName(analysisName);
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedAnalysisId) return;
+    try {
+      await databaseService.deleteAnalysis(selectedAnalysisId);
+      setDeleteModalVisible(false);
+      setSelectedAnalysisId(null);
+      setSelectedAnalysisName(undefined);
+      await refreshUserData();
+    } catch (err) {
+      console.error('Failed to delete analysis:', err);
+      setDeleteModalVisible(false);
+      Alert.alert('Ошибка', 'Не удалось удалить анализ');
+    }
+  };
+
   const AnalysisCard: React.FC<{ analysis: Analysis }> = ({ analysis }) => (
     <View style={styles.analysisCard}>
       <View style={styles.cardHeader}>
-        <Text style={styles.dateText}>{formatDate(analysis.createdAt)}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.dateText}>{formatDate(analysis.createdAt)}</Text>
+          {analysis.name ? <Text style={styles.patientName}>{analysis.name}</Text> : null}
+        </View>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => onRequestDelete(analysis.id, analysis.name, (analysis as any).userId)}
+        >
+          <Text style={styles.deleteButtonText}>Удалить</Text>
+        </TouchableOpacity>
         <View style={[styles.stageBadge, { backgroundColor: getStageColor(analysis.result.stage) }]}>
           <Text style={styles.stageText}>{analysis.result.stage}</Text>
         </View>
@@ -117,10 +167,47 @@ const AnalysisHistoryScreen: React.FC = () => {
         </View>
 
         <View style={styles.analysesList}>
-          {userAnalyses.map((analysis) => (
-            <AnalysisCard key={analysis.id} analysis={analysis} />
-          ))}
+          {[
+            // Ensure we only render analyses belonging to the current user and sort by date desc
+            ...userAnalyses
+          ]
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+            .map((analysis) => (
+              <AnalysisCard key={analysis.id} analysis={analysis} />
+            ))}
         </View>
+        {/* Delete confirmation modal (reuses ProfileScreen style) */}
+        <Modal
+          visible={deleteModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setDeleteModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Удаление анализа</Text>
+              <Text style={styles.modalMessage}>
+                {selectedAnalysisName
+                  ? `Вы уверены, что хотите удалить анализ пациента "${selectedAnalysisName}"?`
+                  : 'Вы уверены, что хотите удалить этот анализ?'}
+              </Text>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalCancel]}
+                  onPress={() => setDeleteModalVisible(false)}
+                >
+                  <Text style={styles.modalCancelText}>Отмена</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalConfirm]}
+                  onPress={confirmDelete}
+                >
+                  <Text style={styles.modalConfirmText}>Удалить</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -247,6 +334,72 @@ const styles = StyleSheet.create({
   riskText: {
     fontSize: 14,
     color: '#666',
+  },
+  patientName: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  deleteButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: 'transparent',
+    marginLeft: 8,
+  },
+  deleteButtonText: {
+    color: '#FF3B30',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '85%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#444',
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 6,
+  },
+  modalCancel: {
+    backgroundColor: '#eee',
+  },
+  modalConfirm: {
+    backgroundColor: '#FF3B30',
+  },
+  modalCancelText: {
+    color: '#333',
+    fontWeight: '600',
+  },
+  modalConfirmText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 });
 

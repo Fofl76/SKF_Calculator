@@ -3,6 +3,7 @@ import {
   setDoc,
   getDoc,
   updateDoc,
+  deleteDoc,
   collection,
   query,
   where,
@@ -166,18 +167,22 @@ class DatabaseService {
     }
 
     console.log('Getting user analyses:', userId);
+    // Query only by equality to avoid requiring a composite index in Firestore.
     const q = query(
       collection(db, COLLECTIONS.ANALYSES),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', userId)
     );
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
+    const analyses = querySnapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
+      ...(doc.data() as any),
+      createdAt: (doc.data() as any).createdAt?.toDate() || new Date(),
     })) as Analysis[];
+
+    // Sort client-side by createdAt desc to preserve previous ordering behavior.
+    analyses.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return analyses;
   }
 
   async getAnalysisById(analysisId: string): Promise<Analysis | null> {
@@ -192,6 +197,21 @@ class DatabaseService {
       } as Analysis;
     }
     return null;
+  }
+
+  async deleteAnalysis(analysisId: string): Promise<void> {
+    if (!db) {
+      console.error('Firestore db is not initialized');
+      throw new Error('Firebase db not initialized');
+    }
+
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.ANALYSES, analysisId));
+      console.log('Analysis deleted:', analysisId);
+    } catch (error) {
+      console.error('Failed to delete analysis:', error);
+      throw error;
+    }
   }
 
   // ===== СТАТИСТИКА =====
