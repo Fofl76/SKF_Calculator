@@ -165,7 +165,12 @@ const HomeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollContainer}>
+      <ScrollView
+        style={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={true}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Расчет СКФ</Text>
           <Text style={styles.subtitle}>Скорость клубочковой фильтрации по формуле CKD-EPI</Text>
@@ -325,7 +330,6 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-    paddingBottom: 140, // leave space for elevated bottom tab bar
   },
   header: {
     padding: 20,

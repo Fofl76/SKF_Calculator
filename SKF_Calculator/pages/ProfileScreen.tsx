@@ -272,7 +272,12 @@ const ProfileScreen: React.FC = () => {
         </View>
       </Modal>
 
-      <ScrollView style={styles.scrollContainer}>
+      <ScrollView
+        style={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={true}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
         {busy && (
           <View style={styles.busyOverlay}>
             <Loader />
@@ -299,23 +304,24 @@ const ProfileScreen: React.FC = () => {
         <View style={styles.formContainer}>
           <View style={styles.formHeader}>
             <Text style={styles.formTitle}>Контактная информация</Text>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={async () => {
-                if (!isEditing) {
-                  // enter edit mode and prefill fields from profile
-                  setNameInput(userProfile?.name || '');
-                  setPositionInput(userProfile?.position || '');
-                  setContactPhoneInput(userProfile?.contactPhone || '');
-                  setIsEditing(true);
-                } else {
-                  await saveProfile();
-                }
-              }}
-            >
-              <Text style={styles.editButtonText}>{isEditing ? 'Сохранить' : 'Изменить'}</Text>
-            </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            style={styles.fullWidthEditButton}
+            onPress={async () => {
+              if (!isEditing) {
+                // enter edit mode and prefill fields from profile
+                setNameInput(userProfile?.name || '');
+                setPositionInput(userProfile?.position || '');
+                setContactPhoneInput(userProfile?.contactPhone || '');
+                setIsEditing(true);
+              } else {
+                await saveProfile();
+              }
+            }}
+          >
+            <Text style={styles.fullWidthEditButtonText}>{isEditing ? 'Сохранить' : 'Изменить'}</Text>
+          </TouchableOpacity>
 
           {/* show fields only in edit mode */}
           {isEditing && (
@@ -434,7 +440,6 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
-    paddingBottom: 140,
   },
   header: {
     alignItems: 'center',
@@ -570,6 +575,19 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     color: 'white',
+    fontWeight: '600',
+  },
+  fullWidthEditButton: {
+    backgroundColor: '#3C9245',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  fullWidthEditButtonText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: '600',
   },
   actionsRow: {
