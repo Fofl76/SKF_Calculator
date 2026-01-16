@@ -37,15 +37,15 @@ const AnalysisHistoryScreen: React.FC = () => {
   const getStageColor = (stage: string): string => {
     switch (stage.toLowerCase()) {
       case 'стадия 1':
-        return '#4CAF50'; // Зеленый
+        return '#3C9245'; // Зеленый
       case 'стадия 2':
-        return '#FF9800'; // Оранжевый
+        return '#FCB404'; // Желтый
       case 'стадия 3':
-        return '#FF5722'; // Красный
+        return '#F783A3'; // Розовый
       case 'стадия 4':
-        return '#F44336'; // Темно-красный
+        return '#F94315'; // Красный
       case 'стадия 5':
-        return '#9C27B0'; // Фиолетовый
+        return '#F94315'; // Красный
       default:
         return '#666';
     }
@@ -229,7 +229,7 @@ const AnalysisHistoryScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#E4E3DB',
   },
   scrollContainer: {
     flex: 1,
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   egfrValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#3C9245',
     marginBottom: 4,
   },
   kidneyFunctionText: {
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   deleteButtonText: {
-    color: '#FF3B30',
+    color: '#F94315',
     fontWeight: '600',
   },
   busyOverlay: {
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee',
   },
   modalConfirm: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: '#F94315',
   },
   modalCancelText: {
     color: '#333',

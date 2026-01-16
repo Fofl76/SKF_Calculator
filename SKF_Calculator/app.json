@@ -4,27 +4,33 @@
     "slug": "SKF_Calculator",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/почки.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/почки.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#E4E3DB"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/почки.png",
+        "backgroundColor": "#E4E3DB"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.fallen123.SKF_Calculator"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/почки.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "30e9bc94-e667-4ce9-99c5-85219a861a18"
+      }
     }
   }
 }

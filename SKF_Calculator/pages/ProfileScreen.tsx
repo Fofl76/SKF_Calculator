@@ -430,7 +430,7 @@ const ProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#E4E3DB',
   },
   scrollContainer: {
     flex: 1,
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#3C9245',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
   institutionName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#007AFF',
+    color: '#3C9245',
     marginBottom: 6,
   },
   institutionAddress: {
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   },
   institutionHotline: {
     fontSize: 14,
-    color: '#FF3B30',
+    color: '#F94315',
   },
   formContainer: {
     backgroundColor: 'white',
@@ -546,24 +546,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#E4E3DB',
   },
   inputDisabled: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#E4E3DB',
     color: '#666',
   },
   inputError: {
-    borderColor: '#FF3B30',
+    borderColor: '#F94315',
     borderWidth: 1,
   },
   errorText: {
-    color: '#FF3B30',
+    color: '#F94315',
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
   },
   editButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#3C9245',
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 6,
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   logoutButton: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: '#F94315',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   fullLogoutButton: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: '#F94315',
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee',
   },
   modalConfirm: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: '#F94315',
   },
   modalCancelText: {
     color: '#333',
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   fullInfoButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#3C9245',
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
   infoSectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#3C9245',
     marginBottom: 10,
   },
   infoText: {
@@ -732,9 +732,9 @@ const styles = StyleSheet.create({
   },
   infoFormula: {
     fontSize: 14,
-    color: '#007AFF',
+    color: '#3C9245',
     fontWeight: '600',
-    backgroundColor: '#f0f8ff',
+    backgroundColor: '#E4E3DB',
     padding: 10,
     borderRadius: 6,
     marginVertical: 10,
@@ -748,17 +748,17 @@ const styles = StyleSheet.create({
   },
   infoWarning: {
     fontSize: 14,
-    color: '#FF6B35',
+    color: '#F94315',
     fontWeight: '600',
     backgroundColor: '#FFF4F4',
     padding: 10,
     borderRadius: 6,
     borderLeftWidth: 3,
-    borderLeftColor: '#FF6B35',
+    borderLeftColor: '#F94315',
   },
   contactEmail: {
     fontSize: 14,
-    color: '#007AFF',
+    color: '#3C9245',
     fontWeight: '600',
   },
 });

@@ -130,7 +130,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#E4E3DB',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#3C9245',
     marginBottom: 10,
   },
   subtitle: {
@@ -180,10 +180,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#E4E3DB',
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#3C9245',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   linkTextBold: {
-    color: '#007AFF',
+    color: '#3C9245',
     fontWeight: '600',
   },
   busyOverlay: {

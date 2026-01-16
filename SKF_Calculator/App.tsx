@@ -21,7 +21,7 @@ function MainApp() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false, // remove top header
-        tabBarActiveTintColor: '#007AFF',
+        tabBarActiveTintColor: '#3C9245',
         tabBarInactiveTintColor: '#666',
         tabBarStyle: {
           position: 'absolute',
@@ -33,7 +33,7 @@ function MainApp() {
           backgroundColor: '#FFFFFF',
           paddingTop: 10,
           borderWidth: 1,
-          borderColor: '#E6EEF8',
+          borderColor: '#E4E3DB',
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 6 },
           shadowOpacity: 0.12,
@@ -102,7 +102,7 @@ function AppNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#E4E3DB' }}>
         <Loader />
         <Text style={{ marginTop: 10, color: '#666' }}>Загрузка...</Text>
       </View>
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabIconActive: {
-    backgroundColor: '#E7F2FF',
+    backgroundColor: '#E4E3DB',
   },
   tabIconCenter: {
     width: 60,
@@ -159,6 +159,6 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   tabIconActiveCenter: {
-    backgroundColor: '#E7F2FF',
+    backgroundColor: '#E4E3DB',
   },
 });

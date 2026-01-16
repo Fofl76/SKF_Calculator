@@ -156,11 +156,11 @@ const HomeScreen: React.FC = () => {
   };
 
   const getCKDStage = (skf: number): { stage: string; color: string; description: string } => {
-    if (skf >= 90) return { stage: 'Стадия 1', color: '#4CAF50', description: 'Нормальная или повышенная СКФ' };
-    if (skf >= 60) return { stage: 'Стадия 2', color: '#FF9800', description: 'Легкое снижение СКФ' };
-    if (skf >= 30) return { stage: 'Стадия 3', color: '#FF5722', description: 'Умеренное снижение СКФ' };
-    if (skf >= 15) return { stage: 'Стадия 4', color: '#F44336', description: 'Тяжелое снижение СКФ' };
-    return { stage: 'Стадия 5', color: '#9C27B0', description: 'Терминальная почечная недостаточность' };
+    if (skf >= 90) return { stage: 'Стадия 1', color: '#3C9245', description: 'Нормальная или повышенная СКФ' };
+    if (skf >= 60) return { stage: 'Стадия 2', color: '#FCB404', description: 'Легкое снижение СКФ' };
+    if (skf >= 30) return { stage: 'Стадия 3', color: '#F783A3', description: 'Умеренное снижение СКФ' };
+    if (skf >= 15) return { stage: 'Стадия 4', color: '#F94315', description: 'Тяжелое снижение СКФ' };
+    return { stage: 'Стадия 5', color: '#F94315', description: 'Терминальная почечная недостаточность' };
   };
 
   return (
@@ -283,13 +283,12 @@ const HomeScreen: React.FC = () => {
         {result !== null && (
           <View style={styles.resultContainer}>
             <Text style={styles.resultTitle}>Результат расчета</Text>
-            <Text style={styles.resultValue}>{result} мл/мин/1.73м²</Text>
-
-            <View style={styles.resultSection}>
-              <Text style={[styles.kidneyFunctionText, { color: getCKDStage(result).color }]}>
-                Функция почек: {Math.round(Math.min((result / 90) * 100, 100))}%
+            <Text style={styles.resultValue}>
+              СКФ: {result} мл/мин/1.73м²
+              <Text style={[styles.kidneyFunctionInline, { color: getCKDStage(result).color }]}>
+                {' '}• Функция почек: {Math.round(Math.min((result / 90) * 100, 100))}%
               </Text>
-            </View>
+            </Text>
 
             <View style={[styles.stageContainer, { backgroundColor: getCKDStage(result).color + '20' }]}>
               <Text style={[styles.stageText, { color: getCKDStage(result).color }]}>
@@ -309,19 +308,19 @@ const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#E4E3DB',
   },
   profileInfo: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#E4E3DB',
     padding: 12,
     borderRadius: 8,
     marginBottom: 20,
     borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
+    borderLeftColor: '#3C9245',
   },
   profileInfoText: {
     fontSize: 14,
-    color: '#1565C0',
+    color: '#3C9245',
     textAlign: 'center',
   },
   scrollContainer: {
@@ -336,7 +335,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#3C9245',
     marginBottom: 8,
   },
   subtitle: {
@@ -370,7 +369,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#E4E3DB',
   },
   radioGroup: {
     flexDirection: 'row',
@@ -383,22 +382,22 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 8,
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#E4E3DB',
   },
   radioButtonSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#007AFF10',
+    borderColor: '#3C9245',
+    backgroundColor: '#3C924510',
   },
   radioText: {
     fontSize: 14,
     color: '#666',
   },
   radioTextSelected: {
-    color: '#007AFF',
+    color: '#3C9245',
     fontWeight: '600',
   },
   calculateButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#3C9245',
     paddingVertical: 15,
     borderRadius: 8,
     alignItems: 'center',
@@ -428,10 +427,15 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   resultValue: {
-    fontSize: 32,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#3C9245',
     marginBottom: 15,
+    textAlign: 'center',
+  },
+  kidneyFunctionInline: {
+    fontSize: 18,
+    fontWeight: '600',
   },
   stageContainer: {
     padding: 15,
@@ -469,10 +473,10 @@ const styles = StyleSheet.create({
   },
   inputError: {
     backgroundColor: '#FFF2F2',
-    borderColor: '#FF6B6B',
+    borderColor: '#F94315',
   },
   errorText: {
-    color: '#D64545',
+    color: '#F94315',
     marginTop: 6,
     fontSize: 13,
   },

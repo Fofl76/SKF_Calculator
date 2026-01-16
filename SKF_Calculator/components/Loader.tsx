@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   bar: {
     width: BAR_WIDTH,
     height: BAR_HEIGHT,
-    backgroundColor: '#076fe5',
+    backgroundColor: '#3C9245',
     borderRadius: 4,
   },
 });
