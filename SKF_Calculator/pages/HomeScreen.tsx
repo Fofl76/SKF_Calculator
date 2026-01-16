@@ -12,6 +12,7 @@ interface PatientData {
   weight: string; // kg
 }
 
+
 const HomeScreen: React.FC = () => {
   const { userProfile, saveAnalysis } = useAuth();
   const [patientData, setPatientData] = useState<PatientData>({
@@ -45,6 +46,7 @@ const HomeScreen: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Do not auto-fill form fields from user profile; fields are filled manually by user.
+
 
   const calculateAgeFromBirthDate = (birthDate: string): number => {
     if (!birthDate) return 0;
@@ -242,13 +244,13 @@ const HomeScreen: React.FC = () => {
                 setErrors(prev => ({ ...prev, creatinine: '' }));
               }}
               keyboardType="numeric"
-              placeholder={creatinineUnit === 'umol' ? 'Введите значение в µmol/L' : 'Введите значение в mg/dL'}
+              placeholder={creatinineUnit === 'umol' ? 'Введите значение в мкмоль/л' : 'Введите значение в мг/дл'}
             />
 
             <View style={styles.unitToggleContainer}>
               <Text style={styles.unitToggleLabel}>Единицы</Text>
               <View style={styles.unitToggleRow}>
-                <Text style={styles.unitText}>{creatinineUnit === 'umol' ? 'µmol/L' : 'mg/dL'}</Text>
+                <Text style={styles.unitText}>{creatinineUnit === 'umol' ? 'мкмоль/л' : 'мг/дл'}</Text>
                 <Switch
                   value={creatinineUnit === 'mgdl'}
                   onValueChange={(val) => toggleCreatinineUnit(val)}
@@ -282,6 +284,13 @@ const HomeScreen: React.FC = () => {
           <View style={styles.resultContainer}>
             <Text style={styles.resultTitle}>Результат расчета</Text>
             <Text style={styles.resultValue}>{result} мл/мин/1.73м²</Text>
+
+            <View style={styles.resultSection}>
+              <Text style={[styles.kidneyFunctionText, { color: getCKDStage(result).color }]}>
+                Функция почек: {Math.round(Math.min((result / 90) * 100, 100))}%
+              </Text>
+            </View>
+
             <View style={[styles.stageContainer, { backgroundColor: getCKDStage(result).color + '20' }]}>
               <Text style={[styles.stageText, { color: getCKDStage(result).color }]}>
                 {getCKDStage(result).stage}
@@ -466,6 +475,18 @@ const styles = StyleSheet.create({
     color: '#D64545',
     marginTop: 6,
     fontSize: 13,
+  },
+  resultSection: {
+    marginTop: 15,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    alignItems: 'center',
+  },
+  kidneyFunctionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
   },
 });
 

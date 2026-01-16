@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+import Toast from 'react-native-toast-message';
 import Loader from './components/Loader';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -127,6 +128,7 @@ export default function App() {
   return (
     <AuthProvider>
       <AppNavigator />
+      <Toast />
     </AuthProvider>
   );
 }

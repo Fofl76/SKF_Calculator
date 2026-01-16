@@ -142,6 +142,9 @@ const AnalysisHistoryScreen: React.FC = () => {
         <View style={styles.resultSection}>
           <Text style={styles.resultLabel}>Результат:</Text>
           <Text style={styles.egfrValue}>СКФ: {analysis.result.eGFR.toFixed(1)} мл/мин/1.73м²</Text>
+          <Text style={[styles.kidneyFunctionText, { color: getStageColor(analysis.result.stage) }]}>
+            Функция почек: {Math.round(Math.min((analysis.result.eGFR / 90) * 100, 100))}%
+          </Text>
           <Text style={styles.riskText}>Риск: {analysis.result.risk}</Text>
         </View>
       </View>
@@ -339,6 +342,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#007AFF',
+    marginBottom: 4,
+  },
+  kidneyFunctionText: {
+    fontSize: 16,
+    fontWeight: '600',
     marginBottom: 4,
   },
   riskText: {

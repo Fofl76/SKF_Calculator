@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
   Modal,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { UserProfile } from '../types/database';
@@ -26,28 +26,95 @@ const ProfileScreen: React.FC = () => {
   const navigation = useNavigation();
   const [isEditing, setIsEditing] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const [nameInput, setNameInput] = useState<string>('');
   const [positionInput, setPositionInput] = useState<string>('');
   const [contactPhoneInput, setContactPhoneInput] = useState<string>('');
 
+  // Validation states
+  const [nameError, setNameError] = useState<string>('');
+  const [positionError, setPositionError] = useState<string>('');
+  const [phoneError, setPhoneError] = useState<string>('');
+
   // Do not auto-fill inputs from userProfile; fields should be filled manually by the user.
 
+  // Validation functions
+  const validateName = (name: string) => {
+    if (!name.trim()) {
+      setNameError('ФИО обязательно для заполнения');
+      return false;
+    }
+    if (name.trim().length < 2) {
+      setNameError('ФИО должно содержать минимум 2 символа');
+      return false;
+    }
+    setNameError('');
+    return true;
+  };
+
+  const validatePosition = (position: string) => {
+    if (!position.trim()) {
+      setPositionError('Должность обязательна для заполнения');
+      return false;
+    }
+    setPositionError('');
+    return true;
+  };
+
+  const validatePhone = (phone: string) => {
+    if (!phone.trim()) {
+      setPhoneError('');
+      return true; // Phone is optional
+    }
+    const phoneRegex = /^(\+7|8)?[\s\-]?\(?[0-9]{3}\)?[\s\-]?[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$/;
+    if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
+      setPhoneError('Введите корректный номер телефона');
+      return false;
+    }
+    setPhoneError('');
+    return true;
+  };
+
+  const validateAllFields = () => {
+    const nameValid = validateName(nameInput);
+    const positionValid = validatePosition(positionInput);
+    const phoneValid = validatePhone(contactPhoneInput);
+    return nameValid && positionValid && phoneValid;
+  };
+
   const saveProfile = async () => {
+    if (!validateAllFields()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Проверка не пройдена',
+        text2: 'Пожалуйста, исправьте ошибки в форме',
+      });
+      return;
+    }
+
     try {
       const updates: Partial<UserProfile> = {
-        name: nameInput || undefined,
-        position: positionInput || undefined,
-        contactPhone: contactPhoneInput || undefined,
+        name: nameInput.trim() || undefined,
+        position: positionInput.trim() || undefined,
+        contactPhone: contactPhoneInput.trim() || undefined,
       };
 
       await updateUserProfile(updates);
       setIsEditing(false);
-      Alert.alert('Успешно', 'Профиль сохранен');
+      Toast.show({
+        type: 'success',
+        text1: 'Успешно',
+        text2: 'Профиль сохранен',
+      });
     } catch (error) {
       console.error('Ошибка сохранения профиля:', error);
-      Alert.alert('Ошибка', 'Не удалось сохранить профиль');
+      Toast.show({
+        type: 'error',
+        text1: 'Ошибка',
+        text2: 'Не удалось сохранить профиль',
+      });
     }
   };
 
@@ -68,12 +135,20 @@ const ProfileScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('Logout failed:', error);
-      Alert.alert('Ошибка', 'Не удалось выйти из аккаунта');
+      Toast.show({
+        type: 'error',
+        text1: 'Ошибка',
+        text2: 'Не удалось выйти из аккаунта',
+      });
     }
   };
 
   const handleLogout = () => {
     setShowLogoutModal(true);
+  };
+
+  const handleShowInfo = () => {
+    setShowInfoModal(true);
   };
 
   const displayName = userProfile?.name || user?.displayName || 'Пользователь';
@@ -115,6 +190,84 @@ const ProfileScreen: React.FC = () => {
                 <Text style={styles.modalConfirmText}>Выйти</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showInfoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowInfoModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.infoModalContainer}>
+            <View style={styles.infoModalHeader}>
+              <Text style={styles.infoModalTitle}>Информация</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowInfoModal(false)}
+              >
+                <Text style={styles.closeButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.infoModalScroll}>
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>Формула расчета СКФ</Text>
+                <Text style={styles.infoText}>
+                  Калькулятор использует формулу CKD-EPI 2021 (Chronic Kidney Disease Epidemiology Collaboration) для расчета скорости клубочковой фильтрации (СКФ).
+                </Text>
+                <Text style={styles.infoText}>
+                  Формула учитывает уровень креатинина в крови, возраст, пол пациента. Расчет производится в мл/мин/1.73м².
+                </Text>
+                <Text style={styles.infoFormula}>
+                  CKD-EPI 2021 = 142 × (Scr/k)^α × (Scr/k)^-1.200 × 0.9938^Возраст × (1.012 если женщина)
+                </Text>
+                <Text style={styles.infoText}>
+                  Где:{'\n'}• Scr - уровень креатинина (мг/дл или мкмоль/л){'\n'}• k = 0.7 (женщины), 0.9 (мужчины){'\n'}• α = -0.241 (женщины), -0.302 (мужчины)
+                </Text>
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>Инструкция по использованию</Text>
+                <Text style={styles.infoInstruction}>
+                  1. Введите ФИО пациента{'\n'}
+                  2. Укажите пол пациента{'\n'}
+                  3. Введите возраст в годах{'\n'}
+                  4. Укажите вес в килограммах{'\n'}
+                  5. Введите рост в сантиметрах{'\n'}
+                  6. Введите уровень креатинина в крови{'\n'}
+                  7. Выберите единицы измерения (мкмоль/л или мг/дл){'\n'}
+                  8. Нажмите "Рассчитать СКФ"
+                </Text>
+                <Text style={styles.infoWarning}>
+                  Важно: Все поля, кроме имени пациента, обязательны для заполнения.
+                </Text>
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>Интерпретация результатов</Text>
+                <Text style={styles.infoText}>
+                  • Стадия 1: СКФ ≥ 90 мл/мин/1.73м² (нормальная функция){'\n'}
+                  • Стадия 2: СКФ 60-89 мл/мин/1.73м² (легкое снижение){'\n'}
+                  • Стадия 3: СКФ 30-59 мл/мин/1.73м² (умеренное снижение){'\n'}
+                  • Стадия 4: СКФ 15-29 мл/мин/1.73м² (тяжелое снижение){'\n'}
+                  • Стадия 5: СКФ {'<'} 15 мл/мин/1.73м² (терминальная недостаточность)
+                </Text>
+              </View>
+
+              <View style={styles.infoSection}>
+                <Text style={styles.infoSectionTitle}>Контакты</Text>
+                <Text style={styles.infoText}>
+                  По вопросам и предложениям:{'\n'}
+                  <Text style={styles.contactEmail}>g.savidi@yandex.ru</Text>
+                </Text>
+                <Text style={styles.infoText}>
+                  Приложение разработано для медицинских специалистов.
+                </Text>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -170,35 +323,65 @@ const ProfileScreen: React.FC = () => {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>ФИО</Text>
                 <TextInput
-                  style={[styles.input, !isEditing && styles.inputDisabled]}
+                  style={[
+                    styles.input,
+                    !isEditing && styles.inputDisabled,
+                    nameError && styles.inputError
+                  ]}
                   value={nameInput}
-                  onChangeText={setNameInput}
+                  onChangeText={(text) => {
+                    setNameInput(text);
+                    if (isEditing) validateName(text);
+                  }}
                   editable={isEditing}
                   placeholder="Введите ФИО"
                 />
+                {nameError && isEditing && (
+                  <Text style={styles.errorText}>{nameError}</Text>
+                )}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Должность</Text>
                 <TextInput
-                  style={[styles.input, !isEditing && styles.inputDisabled]}
+                  style={[
+                    styles.input,
+                    !isEditing && styles.inputDisabled,
+                    positionError && styles.inputError
+                  ]}
                   value={positionInput}
-                  onChangeText={setPositionInput}
+                  onChangeText={(text) => {
+                    setPositionInput(text);
+                    if (isEditing) validatePosition(text);
+                  }}
                   editable={isEditing}
                   placeholder="Введите должность"
                 />
+                {positionError && isEditing && (
+                  <Text style={styles.errorText}>{positionError}</Text>
+                )}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Контактный телефон</Text>
                 <TextInput
-                  style={[styles.input, !isEditing && styles.inputDisabled]}
+                  style={[
+                    styles.input,
+                    !isEditing && styles.inputDisabled,
+                    phoneError && styles.inputError
+                  ]}
                   value={contactPhoneInput}
-                  onChangeText={setContactPhoneInput}
+                  onChangeText={(text) => {
+                    setContactPhoneInput(text);
+                    if (isEditing) validatePhone(text);
+                  }}
                   editable={isEditing}
                   placeholder="+7 (___) ___-__-__"
                   keyboardType="phone-pad"
                 />
+                {phoneError && isEditing && (
+                  <Text style={styles.errorText}>{phoneError}</Text>
+                )}
               </View>
 
               <View style={{ marginTop: 10 }}>
@@ -210,6 +393,9 @@ const ProfileScreen: React.FC = () => {
                       setNameInput('');
                       setPositionInput('');
                       setContactPhoneInput('');
+                      setNameError('');
+                      setPositionError('');
+                      setPhoneError('');
                     }}
                   >
                     <Text style={styles.fullCancelButtonText}>Отмена</Text>
@@ -219,8 +405,16 @@ const ProfileScreen: React.FC = () => {
             </>
           )}
         </View>
-        {/* Full-width logout button always visible */}
-        <View style={{ marginHorizontal: 20, marginTop: 10 }}>
+
+        {/* Information and logout buttons */}
+        <View style={{ marginHorizontal: 20, marginTop: 10, gap: 10 }}>
+          <TouchableOpacity
+            style={styles.fullInfoButton}
+            onPress={handleShowInfo}
+          >
+            <Text style={styles.fullInfoButtonText}>Информация</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.fullLogoutButton}
             onPress={handleLogout}
@@ -358,6 +552,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     color: '#666',
   },
+  inputError: {
+    borderColor: '#FF3B30',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: '#FF3B30',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+  },
   editButton: {
     backgroundColor: '#007AFF',
     paddingHorizontal: 15,
@@ -465,6 +669,97 @@ const styles = StyleSheet.create({
   modalConfirmText: {
     color: '#fff',
     fontWeight: '700',
+  },
+  fullInfoButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  fullInfoButtonText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  infoModalContainer: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 0,
+    alignItems: 'center',
+  },
+  infoModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  infoModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  infoModalScroll: {
+    width: '100%',
+    padding: 20,
+  },
+  infoSection: {
+    marginBottom: 20,
+  },
+  infoSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginBottom: 10,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  infoFormula: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '600',
+    backgroundColor: '#f0f8ff',
+    padding: 10,
+    borderRadius: 6,
+    marginVertical: 10,
+    textAlign: 'center',
+  },
+  infoInstruction: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 22,
+    marginBottom: 10,
+  },
+  infoWarning: {
+    fontSize: 14,
+    color: '#FF6B35',
+    fontWeight: '600',
+    backgroundColor: '#FFF4F4',
+    padding: 10,
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF6B35',
+  },
+  contactEmail: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '600',
   },
 });
 
