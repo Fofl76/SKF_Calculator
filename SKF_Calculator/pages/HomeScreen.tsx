@@ -42,6 +42,7 @@ const HomeScreen: React.FC = () => {
     setCreatinineUnit(toMgdl ? 'mgdl' : 'umol');
   };
   const [result, setResult] = useState<number | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Do not auto-fill form fields from user profile; fields are filled manually by user.
 
@@ -117,28 +118,28 @@ const HomeScreen: React.FC = () => {
 
   const handleCalculate = async () => {
     try {
-      // Validation
+      // Clear previous errors
+      const newErrors: Record<string, string> = {};
       const creat = parseFloat(patientData.creatinine);
       const age = parseFloat(patientData.age);
       const height = patientData.height ? parseFloat(patientData.height) : undefined;
       const weight = patientData.weight ? parseFloat(patientData.weight) : undefined;
 
       if (isNaN(creat) || creat <= 0) {
-        Alert.alert('Ошибка', 'Введите корректное значение креатинина (> 0).');
-        return;
+        newErrors.creatinine = 'Введите корректное значение креатинина (> 0).';
       }
       if (isNaN(age) || age <= 0 || age > 120) {
-        Alert.alert('Ошибка', 'Введите корректный возраст (1–120).');
-        return;
+        newErrors.age = 'Введите корректный возраст (1–120).';
       }
       if (height !== undefined && (isNaN(height) || height <= 0 || height > 300)) {
-        Alert.alert('Ошибка', 'Введите корректный рост в см.');
-        return;
+        newErrors.height = 'Введите корректный рост в см.';
       }
       if (weight !== undefined && (isNaN(weight) || weight <= 0 || weight > 500)) {
-        Alert.alert('Ошибка', 'Введите корректный вес в кг.');
-        return;
+        newErrors.weight = 'Введите корректный вес в кг.';
       }
+
+      setErrors(newErrors);
+      if (Object.keys(newErrors).length > 0) return;
 
       const skf = calculateCKD_EPI(patientData);
       const roundedResult = Math.round(skf * 100) / 100;
@@ -204,31 +205,42 @@ const HomeScreen: React.FC = () => {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Вес (кг)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.weight && styles.inputError]}
               value={patientData.weight}
-              onChangeText={(text) => setPatientData({...patientData, weight: text})}
+              onChangeText={(text) => {
+                setPatientData({...patientData, weight: text});
+                setErrors(prev => ({ ...prev, weight: '' }));
+              }}
               keyboardType="numeric"
               placeholder="Введите вес в кг"
             />
+            {errors.weight ? <Text style={styles.errorText}>{errors.weight}</Text> : null}
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Возраст (лет)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.age && styles.inputError]}
               value={patientData.age}
-              onChangeText={(text) => setPatientData({...patientData, age: text})}
+              onChangeText={(text) => {
+                setPatientData({...patientData, age: text});
+                setErrors(prev => ({ ...prev, age: '' }));
+              }}
               keyboardType="numeric"
               placeholder="Введите возраст"
             />
+            {errors.age ? <Text style={styles.errorText}>{errors.age}</Text> : null}
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Креатинин</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.creatinine && styles.inputError]}
               value={patientData.creatinine}
-              onChangeText={(text) => setPatientData({...patientData, creatinine: text})}
+              onChangeText={(text) => {
+                setPatientData({...patientData, creatinine: text});
+                setErrors(prev => ({ ...prev, creatinine: '' }));
+              }}
               keyboardType="numeric"
               placeholder={creatinineUnit === 'umol' ? 'Введите значение в µmol/L' : 'Введите значение в mg/dL'}
             />
@@ -243,17 +255,22 @@ const HomeScreen: React.FC = () => {
                 />
               </View>
             </View>
+            {errors.creatinine ? <Text style={styles.errorText}>{errors.creatinine}</Text> : null}
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Рост (см)</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.height && styles.inputError]}
               value={patientData.height}
-              onChangeText={(text) => setPatientData({...patientData, height: text})}
+              onChangeText={(text) => {
+                setPatientData({...patientData, height: text});
+                setErrors(prev => ({ ...prev, height: '' }));
+              }}
               keyboardType="numeric"
               placeholder="Введите рост в см"
             />
+            {errors.height ? <Text style={styles.errorText}>{errors.height}</Text> : null}
           </View>
 
           <TouchableOpacity style={styles.calculateButton} onPress={handleCalculate}>
@@ -440,6 +457,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     marginRight: 12,
+  },
+  inputError: {
+    backgroundColor: '#FFF2F2',
+    borderColor: '#FF6B6B',
+  },
+  errorText: {
+    color: '#D64545',
+    marginTop: 6,
+    fontSize: 13,
   },
 });
 

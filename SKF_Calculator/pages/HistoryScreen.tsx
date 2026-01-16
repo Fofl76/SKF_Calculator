@@ -12,6 +12,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { databaseService } from '../services/databaseService';
 import { Analysis } from '../types/database';
+import Loader from '../components/Loader';
 
 const AnalysisHistoryScreen: React.FC = () => {
   const { userAnalyses, refreshUserData, user } = useAuth();
@@ -53,6 +54,7 @@ const AnalysisHistoryScreen: React.FC = () => {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(null);
   const [selectedAnalysisName, setSelectedAnalysisName] = useState<string | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
 
   const onRequestDelete = (analysisId: string, analysisName?: string, ownerId?: string) => {
     // Prevent attempting to delete analyses that don't belong to the current user
@@ -67,6 +69,7 @@ const AnalysisHistoryScreen: React.FC = () => {
 
   const confirmDelete = async () => {
     if (!selectedAnalysisId) return;
+    setBusy(true);
     try {
       await databaseService.deleteAnalysis(selectedAnalysisId);
       setDeleteModalVisible(false);
@@ -77,6 +80,8 @@ const AnalysisHistoryScreen: React.FC = () => {
       console.error('Failed to delete analysis:', err);
       setDeleteModalVisible(false);
       Alert.alert('Ошибка', 'Не удалось удалить анализ');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -176,6 +181,11 @@ const AnalysisHistoryScreen: React.FC = () => {
               <AnalysisCard key={analysis.id} analysis={analysis} />
             ))}
         </View>
+        {busy && (
+          <View style={styles.busyOverlay}>
+            <Loader />
+          </View>
+        )}
         {/* Delete confirmation modal (reuses ProfileScreen style) */}
         <Modal
           visible={deleteModalVisible}
@@ -350,6 +360,17 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: '#FF3B30',
     fontWeight: '600',
+  },
+  busyOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9998,
   },
   modalOverlay: {
     flex: 1,

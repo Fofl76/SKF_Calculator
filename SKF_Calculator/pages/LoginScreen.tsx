@@ -11,6 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import Loader from '../components/Loader';
 
 interface LoginScreenProps {
   navigation: any;
@@ -103,10 +104,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             onPress={handleLogin}
             disabled={loading}
           >
-            <Text style={styles.buttonText}>
-              {loading ? 'Вход...' : 'Войти'}
-            </Text>
+            <Text style={styles.buttonText}>Войти</Text>
           </TouchableOpacity>
+
+          {loading && (
+            <View style={styles.busyOverlay}>
+              <Loader />
+            </View>
+          )}
 
           <TouchableOpacity
             style={styles.linkButton}
@@ -203,6 +208,17 @@ const styles = StyleSheet.create({
   linkTextBold: {
     color: '#007AFF',
     fontWeight: '600',
+  },
+  busyOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9998,
   },
 });
 

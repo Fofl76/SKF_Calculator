@@ -13,6 +13,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import { UserProfile } from '../types/database';
+import Loader from '../components/Loader';
 
 const INSTITUTION = {
   name: 'Медицинский центр "Пример"',
@@ -25,6 +26,7 @@ const ProfileScreen: React.FC = () => {
   const navigation = useNavigation();
   const [isEditing, setIsEditing] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const [nameInput, setNameInput] = useState<string>('');
   const [positionInput, setPositionInput] = useState<string>('');
@@ -76,6 +78,7 @@ const ProfileScreen: React.FC = () => {
 
   const displayName = userProfile?.name || user?.displayName || 'Пользователь';
   const displayPosition = userProfile?.position || 'Должность не указана';
+  const displayPhone = userProfile?.contactPhone || '';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -100,7 +103,13 @@ const ProfileScreen: React.FC = () => {
                 style={[styles.modalButton, styles.modalConfirm]}
                 onPress={async () => {
                   setShowLogoutModal(false);
-                  await doLogoutAndNavigate();
+                  // show loader and blur, then logout
+                  setBusy(true);
+                  try {
+                    await doLogoutAndNavigate();
+                  } finally {
+                    setBusy(false);
+                  }
                 }}
               >
                 <Text style={styles.modalConfirmText}>Выйти</Text>
@@ -111,6 +120,11 @@ const ProfileScreen: React.FC = () => {
       </Modal>
 
       <ScrollView style={styles.scrollContainer}>
+        {busy && (
+          <View style={styles.busyOverlay}>
+            <Loader />
+          </View>
+        )}
         <View style={styles.header}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
@@ -119,6 +133,7 @@ const ProfileScreen: React.FC = () => {
           </View>
           <Text style={styles.name}>{displayName}</Text>
           <Text style={styles.position}>{displayPosition}</Text>
+          {displayPhone ? <Text style={styles.phoneText}>{displayPhone}</Text> : null}
           <Text style={styles.emailText}>{user?.email ?? ''}</Text>
         </View>
 
@@ -135,6 +150,10 @@ const ProfileScreen: React.FC = () => {
               style={styles.editButton}
               onPress={async () => {
                 if (!isEditing) {
+                  // enter edit mode and prefill fields from profile
+                  setNameInput(userProfile?.name || '');
+                  setPositionInput(userProfile?.position || '');
+                  setContactPhoneInput(userProfile?.contactPhone || '');
                   setIsEditing(true);
                 } else {
                   await saveProfile();
@@ -145,58 +164,69 @@ const ProfileScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>ФИО</Text>
-            <TextInput
-              style={[styles.input, !isEditing && styles.inputDisabled]}
-              value={nameInput}
-              onChangeText={setNameInput}
-              editable={isEditing}
-              placeholder="Введите ФИО"
-            />
-          </View>
+          {/* show fields only in edit mode */}
+          {isEditing && (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>ФИО</Text>
+                <TextInput
+                  style={[styles.input, !isEditing && styles.inputDisabled]}
+                  value={nameInput}
+                  onChangeText={setNameInput}
+                  editable={isEditing}
+                  placeholder="Введите ФИО"
+                />
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Должность</Text>
-            <TextInput
-              style={[styles.input, !isEditing && styles.inputDisabled]}
-              value={positionInput}
-              onChangeText={setPositionInput}
-              editable={isEditing}
-              placeholder="Введите должность"
-            />
-          </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Должность</Text>
+                <TextInput
+                  style={[styles.input, !isEditing && styles.inputDisabled]}
+                  value={positionInput}
+                  onChangeText={setPositionInput}
+                  editable={isEditing}
+                  placeholder="Введите должность"
+                />
+              </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Контактный телефон</Text>
-            <TextInput
-              style={[styles.input, !isEditing && styles.inputDisabled]}
-              value={contactPhoneInput}
-              onChangeText={setContactPhoneInput}
-              editable={isEditing}
-              placeholder="+7 (___) ___-__-__"
-              keyboardType="phone-pad"
-            />
-          </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Контактный телефон</Text>
+                <TextInput
+                  style={[styles.input, !isEditing && styles.inputDisabled]}
+                  value={contactPhoneInput}
+                  onChangeText={setContactPhoneInput}
+                  editable={isEditing}
+                  placeholder="+7 (___) ___-__-__"
+                  keyboardType="phone-pad"
+                />
+              </View>
 
-          <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <Text style={styles.logoutButtonText}>Выйти</Text>
-            </TouchableOpacity>
-            {isEditing && (
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => {
-                  setIsEditing(false);
-                  setNameInput('');
-                  setPositionInput('');
-                  setContactPhoneInput('');
-                }}
-              >
-                <Text style={styles.cancelButtonText}>Отмена</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+              <View style={{ marginTop: 10 }}>
+                {isEditing && (
+                  <TouchableOpacity
+                    style={styles.fullCancelButton}
+                    onPress={() => {
+                      setIsEditing(false);
+                      setNameInput('');
+                      setPositionInput('');
+                      setContactPhoneInput('');
+                    }}
+                  >
+                    <Text style={styles.fullCancelButtonText}>Отмена</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </>
+          )}
+        </View>
+        {/* Full-width logout button always visible */}
+        <View style={{ marginHorizontal: 20, marginTop: 10 }}>
+          <TouchableOpacity
+            style={styles.fullLogoutButton}
+            onPress={handleLogout}
+          >
+            <Text style={styles.fullLogoutButtonText}>Выйти</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -210,6 +240,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
+    paddingBottom: 140,
   },
   header: {
     alignItems: 'center',
@@ -245,6 +276,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 6,
+  },
+  phoneText: {
+    fontSize: 14,
+    color: '#333',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  busyOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9998,
   },
   institutionCard: {
     backgroundColor: 'white',
@@ -344,6 +392,29 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: 'white',
     fontWeight: '700',
+  },
+  fullLogoutButton: {
+    backgroundColor: '#FF3B30',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  fullLogoutButtonText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  fullCancelButton: {
+    backgroundColor: '#FFF3BF',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  fullCancelButtonText: {
+    color: '#8A6D00',
+    fontWeight: '700',
+    fontSize: 16,
   },
   modalOverlay: {
     flex: 1,

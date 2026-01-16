@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+import Loader from './components/Loader';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -101,7 +102,7 @@ function AppNavigator() {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <Loader />
         <Text style={{ marginTop: 10, color: '#666' }}>Загрузка...</Text>
       </View>
     );
