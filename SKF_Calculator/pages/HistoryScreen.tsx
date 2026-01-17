@@ -8,6 +8,7 @@ import {
   Alert,
   TouchableOpacity,
   Modal,
+  TextInput,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { databaseService } from '../services/databaseService';
@@ -55,6 +56,12 @@ const AnalysisHistoryScreen: React.FC = () => {
   const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(null);
   const [selectedAnalysisName, setSelectedAnalysisName] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [selectedGender, setSelectedGender] = useState<'male' | 'female' | null>(null);
+  const [selectedStages, setSelectedStages] = useState<number[]>([]);
+  const [dateFrom, setDateFrom] = useState<Date | null>(null);
+  const [dateTo, setDateTo] = useState<Date | null>(null);
 
   const onRequestDelete = (analysisId: string, analysisName?: string, ownerId?: string) => {
     // Prevent attempting to delete analyses that don't belong to the current user
@@ -84,6 +91,7 @@ const AnalysisHistoryScreen: React.FC = () => {
       setBusy(false);
     }
   };
+
 
   const AnalysisCard: React.FC<{ analysis: Analysis }> = ({ analysis }) => (
     <View style={styles.analysisCard}>
@@ -172,6 +180,20 @@ const AnalysisHistoryScreen: React.FC = () => {
           <Text style={styles.subtitle}>
             Всего анализов: {userAnalyses.length}
           </Text>
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Поиск по имени пациента..."
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+          </View>
+          <TouchableOpacity
+            style={[styles.filterButton, styles.filterButtonFullWidth]}
+            onPress={() => setFilterModalVisible(true)}
+          >
+            <Text style={styles.filterButtonText}>Фильтр</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.analysesList}>
@@ -179,6 +201,39 @@ const AnalysisHistoryScreen: React.FC = () => {
             // Ensure we only render analyses belonging to the current user and sort by date desc
             ...userAnalyses
           ]
+            .filter((analysis) => {
+              // Text search filter
+              if (searchText !== '' && (!analysis.name || !analysis.name.toLowerCase().includes(searchText.toLowerCase()))) {
+                return false;
+              }
+
+              // Gender filter
+              if (selectedGender && analysis.gender !== selectedGender) {
+                return false;
+              }
+
+              // Stage filter
+              if (selectedStages.length > 0) {
+                const stageNumber = parseInt(analysis.result.stage.replace('Стадия ', ''));
+                if (!selectedStages.includes(stageNumber)) {
+                  return false;
+                }
+              }
+
+              // Date range filter
+              if (dateFrom && analysis.createdAt < dateFrom) {
+                return false;
+              }
+              if (dateTo) {
+                const endOfDay = new Date(dateTo);
+                endOfDay.setHours(23, 59, 59, 999);
+                if (analysis.createdAt > endOfDay) {
+                  return false;
+                }
+              }
+
+              return true;
+            })
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
             .map((analysis) => (
               <AnalysisCard key={analysis.id} analysis={analysis} />
@@ -221,6 +276,147 @@ const AnalysisHistoryScreen: React.FC = () => {
             </View>
           </View>
         </Modal>
+
+        {/* Filter modal */}
+        <Modal
+          visible={filterModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setFilterModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Фильтры</Text>
+
+              {/* Gender filter */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Пол пациента:</Text>
+                <View style={styles.genderContainer}>
+                  <TouchableOpacity
+                    style={[styles.genderOption, selectedGender === 'male' && styles.genderOptionSelected]}
+                    onPress={() => setSelectedGender(selectedGender === 'male' ? null : 'male')}
+                  >
+                    <Text style={[styles.genderOptionText, selectedGender === 'male' && styles.genderOptionTextSelected]}>
+                      Мужской
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.genderOption, selectedGender === 'female' && styles.genderOptionSelected]}
+                    onPress={() => setSelectedGender(selectedGender === 'female' ? null : 'female')}
+                  >
+                    <Text style={[styles.genderOptionText, selectedGender === 'female' && styles.genderOptionTextSelected]}>
+                      Женский
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Stage filter */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Стадии (можно выбрать несколько):</Text>
+                <View style={styles.stagesContainer}>
+                  {[1, 2, 3, 4, 5].map((stage) => (
+                    <TouchableOpacity
+                      key={stage}
+                      style={[styles.stageCheckbox, selectedStages.includes(stage) && styles.stageCheckboxSelected]}
+                      onPress={() => {
+                        if (selectedStages.includes(stage)) {
+                          setSelectedStages(selectedStages.filter(s => s !== stage));
+                        } else {
+                          setSelectedStages([...selectedStages, stage]);
+                        }
+                      }}
+                    >
+                      <Text style={[styles.stageCheckboxText, selectedStages.includes(stage) && styles.stageCheckboxTextSelected]}>
+                        Стадия {stage}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Date filter */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Период анализа:</Text>
+                <View style={styles.dateContainer}>
+                  <View style={styles.dateField}>
+                    <Text style={styles.dateLabel}>От:</Text>
+                    <TextInput
+                      style={styles.dateInput}
+                      placeholder="ДД.ММ.ГГГГ"
+                      value={dateFrom ? dateFrom.toLocaleDateString('ru-RU') : ''}
+                      onChangeText={(text) => {
+                        if (text.length === 10) {
+                          const date = new Date(text.split('.').reverse().join('-'));
+                          if (!isNaN(date.getTime())) {
+                            setDateFrom(date);
+                          }
+                        } else if (text === '') {
+                          setDateFrom(null);
+                        }
+                      }}
+                    />
+                  </View>
+                  <View style={styles.dateField}>
+                    <Text style={styles.dateLabel}>До:</Text>
+                    <TextInput
+                      style={styles.dateInput}
+                      placeholder="ДД.ММ.ГГГГ"
+                      value={dateTo ? dateTo.toLocaleDateString('ru-RU') : ''}
+                      onChangeText={(text) => {
+                        if (text.length === 10) {
+                          const date = new Date(text.split('.').reverse().join('-'));
+                          if (!isNaN(date.getTime())) {
+                            setDateTo(date);
+                          }
+                        } else if (text === '') {
+                          setDateTo(null);
+                        }
+                      }}
+                    />
+                  </View>
+                </View>
+                {(dateFrom || dateTo) && (
+                  <TouchableOpacity
+                    style={styles.clearDateButton}
+                    onPress={() => {
+                      setDateFrom(null);
+                      setDateTo(null);
+                    }}
+                  >
+                    <Text style={styles.clearDateButtonText}>Очистить даты</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.resetButton]}
+                  onPress={() => {
+                    setSelectedGender(null);
+                    setSelectedStages([]);
+                    setDateFrom(null);
+                    setDateTo(null);
+                  }}
+                >
+                  <Text style={styles.resetButtonText}>Сбросить</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalCancel]}
+                  onPress={() => setFilterModalVisible(false)}
+                >
+                  <Text style={styles.modalCancelText}>Отмена</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalConfirm]}
+                  onPress={() => setFilterModalVisible(false)}
+                >
+                  <Text style={styles.modalConfirmText}>Применить</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -238,6 +434,17 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: 'white',
     marginBottom: 10,
+  },
+  searchContainer: {
+    marginTop: 10,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#E4E3DB',
   },
   title: {
     fontSize: 24,
@@ -429,6 +636,174 @@ const styles = StyleSheet.create({
   modalConfirmText: {
     color: '#fff',
     fontWeight: '700',
+  },
+  filterButton: {
+    backgroundColor: '#3C9245',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  filterButtonFullWidth: {
+    alignSelf: 'stretch',
+    marginHorizontal: 0,
+  },
+  filterButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  filterSection: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
+  filterOption: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#E4E3DB',
+  },
+  filterOptionSelected: {
+    borderColor: '#3C9245',
+    backgroundColor: '#3C924510',
+  },
+  filterOptionText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  filterOptionTextSelected: {
+    color: '#3C9245',
+    fontWeight: '600',
+  },
+  sortOrderContainer: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  sortOrderButton: {
+    flex: 1,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#E4E3DB',
+    alignItems: 'center',
+  },
+  sortOrderButtonSelected: {
+    borderColor: '#3C9245',
+    backgroundColor: '#3C924510',
+  },
+  sortOrderText: {
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+  },
+  sortOrderTextSelected: {
+    color: '#3C9245',
+    fontWeight: '600',
+  },
+  genderContainer: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  genderOption: {
+    flex: 1,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#E4E3DB',
+    alignItems: 'center',
+  },
+  genderOptionSelected: {
+    borderColor: '#3C9245',
+    backgroundColor: '#3C924510',
+  },
+  genderOptionText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  genderOptionTextSelected: {
+    color: '#3C9245',
+    fontWeight: '600',
+  },
+  stagesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  stageCheckbox: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    backgroundColor: '#E4E3DB',
+  },
+  stageCheckboxSelected: {
+    borderColor: '#3C9245',
+    backgroundColor: '#3C924510',
+  },
+  stageCheckboxText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  stageCheckboxTextSelected: {
+    color: '#3C9245',
+    fontWeight: '600',
+  },
+  dateContainer: {
+    gap: 12,
+  },
+  dateField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dateLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    minWidth: 25,
+  },
+  dateInput: {
+    flex: 1,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#E4E3DB',
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+    minWidth: 120,
+  },
+  clearDateButton: {
+    marginTop: 10,
+    padding: 8,
+    alignItems: 'center',
+  },
+  clearDateButtonText: {
+    color: '#F94315',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  resetButton: {
+    backgroundColor: '#FFF3BF',
+    flex: 1,
+  },
+  resetButtonText: {
+    color: '#8A6D00',
+    fontWeight: '600',
   },
 });
 

@@ -12,19 +12,24 @@ import {
   addDoc,
   serverTimestamp,
   Timestamp,
+  FieldValue,
+  Firestore,
 } from 'firebase/firestore';
 // @ts-ignore - db может быть undefined если Firebase не инициализирован
 import { Firestore as db } from '../config/firebase';
 
+// @ts-ignore - Explicitly type the db variable
+const dbTyped: Firestore | undefined = db as any;
+
 // Type assertion for db
-const firestoreDb = db as any;
+const firestoreDb: Firestore = dbTyped || ({} as Firestore);
 import { COLLECTIONS, UserProfile, Analysis, User } from '../types/database';
 
 class DatabaseService {
   // ===== ПОЛЬЗОВАТЕЛИ =====
 
   async createUser(userId: string, email: string): Promise<void> {
-    if (!db) {
+    if (!firestoreDb) {
       console.error('Firestore db is not initialized');
       throw new Error('Firebase db not initialized');
     }
@@ -35,18 +40,18 @@ class DatabaseService {
     };
 
     console.log('Creating user document:', userId, email);
-    await setDoc(doc(db, COLLECTIONS.USERS, userId), userDoc);
+    await setDoc(doc(firestoreDb, COLLECTIONS.USERS, userId), userDoc);
     console.log('User document created successfully');
   }
 
   async updateUserLastLogin(userId: string): Promise<void> {
-    if (!db) {
+    if (!firestoreDb) {
       console.error('Firestore db is not initialized');
       throw new Error('Firebase db not initialized');
     }
 
     console.log('Updating user last login:', userId);
-    const userRef = doc(db, COLLECTIONS.USERS, userId);
+    const userRef = doc(firestoreDb, COLLECTIONS.USERS, userId);
     await updateDoc(userRef, {
       lastLoginAt: serverTimestamp(),
     });
@@ -54,13 +59,13 @@ class DatabaseService {
   }
 
   async getUser(userId: string): Promise<User | null> {
-    if (!db) {
+    if (!firestoreDb) {
       console.error('Firestore db is not initialized');
       throw new Error('Firebase db not initialized');
     }
 
     console.log('Getting user:', userId);
-    const docRef = doc(db, COLLECTIONS.USERS, userId);
+    const docRef = doc(firestoreDb, COLLECTIONS.USERS, userId);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -77,7 +82,7 @@ class DatabaseService {
   // ===== ПРОФИЛИ ПОЛЬЗОВАТЕЛЕЙ =====
 
   async createUserProfile(userId: string, profileData: Partial<Omit<UserProfile, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>): Promise<string> {
-    if (!db) {
+    if (!firestoreDb) {
       console.error('Firestore db is not initialized');
       throw new Error('Firebase db not initialized');
     }
@@ -97,19 +102,19 @@ class DatabaseService {
     // Remove undefined fields (Firestore rejects undefined)
     profileDoc = Object.fromEntries(Object.entries(profileDoc).filter(([_, v]) => v !== undefined));
     // Store profile under document id == userId for simpler security rules and direct access
-    const docRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
+    const docRef = doc(firestoreDb, COLLECTIONS.USER_PROFILES, userId);
     await setDoc(docRef, profileDoc);
     return userId;
   }
 
   async getUserProfile(userId: string): Promise<UserProfile | null> {
-    if (!db) {
+    if (!firestoreDb) {
       console.error('Firestore db is not initialized');
       throw new Error('Firebase db not initialized');
     }
 
     console.log('Getting user profile:', userId);
-    const docRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
+    const docRef = doc(firestoreDb, COLLECTIONS.USER_PROFILES, userId);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       return {
@@ -123,19 +128,19 @@ class DatabaseService {
   }
 
   async updateUserProfile(userId: string, updates: Partial<Omit<UserProfile, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>): Promise<void> {
-    if (!db) {
+    if (!firestoreDb) {
       console.error('Firestore db is not initialized');
       throw new Error('Firebase db not initialized');
     }
 
     console.log('Updating user profile:', userId);
-    const docRef = doc(db, COLLECTIONS.USER_PROFILES, userId);
+    const docRef = doc(firestoreDb, COLLECTIONS.USER_PROFILES, userId);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       // Clean updates from undefined values
-      const cleanUpdates = Object.fromEntries(Object.entries(updates).filter(([_, v]) => v !== undefined));
+      const cleanUpdates = Object.fromEntries(Object.entries(updates).filter(([_, v]) => v !== undefined)) as Record<string, any>;
       cleanUpdates.updatedAt = serverTimestamp();
-      await updateDoc(docRef, cleanUpdates);
+      await updateDoc(docRef, cleanUpdates as Record<string, any>);
     } else {
       // Если профиль не существует, создаем его под id = userId
       await this.createUserProfile(userId, updates);
@@ -145,7 +150,7 @@ class DatabaseService {
   // ===== АНАЛИЗЫ =====
 
   async saveAnalysis(userId: string, analysisData: Omit<Analysis, 'id' | 'userId' | 'createdAt'>): Promise<string> {
-    if (!db) {
+    if (!firestoreDb) {
       console.error('Firestore db is not initialized');
       throw new Error('Firebase db not initialized');
     }
@@ -156,12 +161,12 @@ class DatabaseService {
       createdAt: new Date(),
     };
 
-    const docRef = await addDoc(collection(db, COLLECTIONS.ANALYSES), analysisDoc);
+    const docRef = await addDoc(collection(firestoreDb, COLLECTIONS.ANALYSES), analysisDoc);
     return docRef.id;
   }
 
   async getUserAnalyses(userId: string): Promise<Analysis[]> {
-    if (!db) {
+    if (!firestoreDb) {
       console.error('Firestore db is not initialized');
       throw new Error('Firebase db not initialized');
     }
@@ -169,7 +174,7 @@ class DatabaseService {
     console.log('Getting user analyses:', userId);
     // Query only by equality to avoid requiring a composite index in Firestore.
     const q = query(
-      collection(db, COLLECTIONS.ANALYSES),
+      collection(firestoreDb, COLLECTIONS.ANALYSES),
       where('userId', '==', userId)
     );
 
@@ -186,7 +191,7 @@ class DatabaseService {
   }
 
   async getAnalysisById(analysisId: string): Promise<Analysis | null> {
-    const docRef = doc(db, COLLECTIONS.ANALYSES, analysisId);
+    const docRef = doc(firestoreDb, COLLECTIONS.ANALYSES, analysisId);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -200,13 +205,13 @@ class DatabaseService {
   }
 
   async deleteAnalysis(analysisId: string): Promise<void> {
-    if (!db) {
+    if (!firestoreDb) {
       console.error('Firestore db is not initialized');
       throw new Error('Firebase db not initialized');
     }
 
     try {
-      await deleteDoc(doc(db, COLLECTIONS.ANALYSES, analysisId));
+      await deleteDoc(doc(firestoreDb, COLLECTIONS.ANALYSES, analysisId));
       console.log('Analysis deleted:', analysisId);
     } catch (error) {
       console.error('Failed to delete analysis:', error);

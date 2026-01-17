@@ -172,8 +172,7 @@ const HomeScreen: React.FC = () => {
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Расчет СКФ</Text>
-          <Text style={styles.subtitle}>Скорость клубочковой фильтрации по формуле CKD-EPI</Text>
+          <Text style={styles.title}>Добро пожаловать в медицинский калькулятор для расчёта СКФ по формуле CKD-EPI 2021</Text>
         </View>
 
         <View style={styles.form}>
@@ -225,7 +224,9 @@ const HomeScreen: React.FC = () => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Возраст (лет)</Text>
+            <Text style={styles.label}>
+              Возраст (лет)<Text style={styles.requiredAsterisk}>*</Text>
+            </Text>
             <TextInput
               style={[styles.input, errors.age && styles.inputError]}
               value={patientData.age}
@@ -240,7 +241,9 @@ const HomeScreen: React.FC = () => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Креатинин</Text>
+            <Text style={styles.label}>
+              Креатинин<Text style={styles.requiredAsterisk}>*</Text>
+            </Text>
             <TextInput
               style={[styles.input, errors.creatinine && styles.inputError]}
               value={patientData.creatinine}
@@ -337,9 +340,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#3C9245',
+    textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
@@ -483,6 +487,10 @@ const styles = StyleSheet.create({
     color: '#F94315',
     marginTop: 6,
     fontSize: 13,
+  },
+  requiredAsterisk: {
+    color: '#F94315',
+    fontWeight: 'bold',
   },
   resultSection: {
     marginTop: 15,
